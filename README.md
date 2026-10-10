@@ -1,10 +1,15 @@
 # 🎉 Game Night
 
-Offline-friendly party games for a group in **one room**. Pass a phone around, scan a QR code to
-get your secret role, and argue with your friends. No accounts, no sign-ups, no installs — it's a
-static site that runs entirely in the browser.
+Party games for a group — two ways to play:
 
-## Games
+- **🕯️ The Long Table** — everyone in one room, one phone passed around. Runs fully offline.
+- **🚗 The Convoy** — different cars, one game. Live across phones with **voice** and **chat**.
+
+No accounts, no sign-ups, no installs. It's a static site that runs in the browser.
+
+## The Long Table (in one room)
+
+Pass the phone around, scan a QR code to get your secret role, and argue with your friends.
 
 **Social deduction**
 - **Mafia** — hidden roles, narrator-guided nights and daytime trials, with **QR-code role reveal**
@@ -20,25 +25,33 @@ static site that runs entirely in the browser.
 - **Wavelength** — read your teammate's mind on a hidden spectrum.
 - **Time's Up** — two teams, three rounds: describe, one word, charades.
 
-## How to play
+## The Convoy (across cars)
 
-1. Open `index.html` (locally or from the hosted URL) on one phone or laptop.
-2. Pick a game, add the players, and follow the on-screen prompts.
-3. Most games are **pass-and-play**: hand the phone to whoever is prompted, so secrets stay secret.
+Built for road trips and kids: **tap-light, voice-first, minimal screen-staring** (good for travel
+sickness). One car starts a convoy, everyone else joins with a 4-character code or an invite link.
 
-### Mafia QR role reveal
+- **Would You Rather** — one question, two choices. Tap, then argue about it out loud.
+- **Two Truths and a Lie** — say two true things and one fib out loud; everyone taps the lie.
+- **Convoy Bingo** — spot things out of the window and mark your card; first full line wins.
 
-The Mafia setup can hand out roles as QR codes instead of passing the phone. Each QR encodes the
-player's role in the URL **fragment** (`#/reveal/...`), so scanning it opens the role privately on
-that player's phone — nothing is sent to any server.
+Every convoy room has:
+- **Push-to-talk voice** — hold the mic button to talk to the other cars.
+- **Chat** — short text plus one-tap emoji reactions for anyone who can't use voice.
 
-QR links need the page to be reachable by every phone, so this mode works best when the site is
-**hosted** (e.g. GitHub Pages). If you open the file directly (`file://`), the app will tell you and
-you can fall back to "Pass the phone".
+Rooms are private: only people with the code can join.
+
+### How the convoy connects (no server of yours)
+
+Peer-to-peer WebRTC via [PeerJS](https://peerjs.com). PeerJS provides free signalling; after that,
+data and voice go **directly between cars**. The car that starts the convoy is the host and keeps
+the game state; the others send their taps and receive updates.
+
+Because it's peer-to-peer, it needs a working connection between the phones (mobile data or Wi-Fi).
+Voice uses WebRTC audio, so a decent signal helps.
 
 ## Run locally
 
-It's plain HTML/CSS/JS — no build step. Either open `index.html` directly, or serve the folder:
+Plain HTML/CSS/JS — no build step. Either open `index.html` directly, or serve the folder:
 
 ```bash
 python3 -m http.server 8000
@@ -47,17 +60,21 @@ python3 -m http.server 8000
 
 ## Deploy
 
-Because it's a static site, GitHub Pages works out of the box:
+Static site — GitHub Pages works out of the box:
 
 1. Push this repo to GitHub.
-2. **Settings → Pages → Build and deployment → Deploy from a branch → `main` / root**.
-3. Share the Pages URL; QR role-reveal will work for everyone.
+2. **Settings → Pages → Deploy from a branch → `main` / root**.
+
+QR role-reveal and convoy invite links both work once the site is hosted (they need a real URL).
 
 ## Notes
 
-- Fully offline: no network calls at runtime. The QR generator is bundled under `vendor/`.
-- State lives only in memory and in the QR link — nothing is stored.
+- **The Long Table** is fully offline; no network calls at runtime.
+- **The Convoy** uses PeerJS's free public signalling server plus WebRTC. No data is stored on any
+  server — chat and game state live only in the room, and the QR role lives only in its link.
+- Bundled libraries: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) and
+  [PeerJS](https://github.com/peers/peerjs) — both MIT.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Bundled QR generator: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) by Kazuhiko Arase (MIT).
+MIT — see [LICENSE](LICENSE).

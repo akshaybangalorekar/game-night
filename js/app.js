@@ -6,7 +6,9 @@
   function boot() {
     if (booted) return;
     booted = true;
-    if (!handleReveal()) GN.goHome();
+    if (handleReveal()) return;
+    if (/[?&]room=/.test(location.search)) { GN.convoy.hub(); return; }   // invite link
+    GN.goHome();
   }
 
   function handleReveal() {

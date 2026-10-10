@@ -251,16 +251,40 @@ window.GN = (function () {
     step(0);
   };
 
-  /* ---------------- home ---------------- */
+  /* ---------------- home: two hubs ---------------- */
+  GN.hubs = [
+    { key: 'table', name: 'The Long Table', emoji: '🕯️', cls: 'hub-table',
+      blurb: 'Everyone in one room, one phone passed around. Mafia, drawing and bluffing.' },
+    { key: 'convoy', name: 'The Convoy', emoji: '🚗', cls: 'hub-convoy',
+      blurb: 'Different cars, one game. Talk, guess and spot things on the road.' }
+  ];
+
   GN.homeView = function () {
+    var html = '<header class="hero"><div class="brand">🎉 Game Night</div>' +
+      '<p class="tagline">Pick a road. Everything runs in the browser — no accounts, no installs.</p></header>' +
+      '<div class="pad"><div class="hubs">' + GN.hubs.map(function (h) {
+        return '<button class="hub-card ' + h.cls + '" data-hub="' + h.key + '">' +
+          '<span class="hub-emoji">' + h.emoji + '</span>' +
+          '<span class="hub-name">' + GN.esc(h.name) + '</span>' +
+          '<span class="hub-blurb">' + GN.esc(h.blurb) + '</span>' +
+          '</button>';
+      }).join('') + '</div></div>';
+    GN.mount(html, function (app) {
+      app.querySelectorAll('[data-hub]').forEach(function (b) {
+        b.addEventListener('click', function () { GN.hubView(b.getAttribute('data-hub')); });
+      });
+    });
+  };
+
+  GN.hubView = function (key) {
+    if (key === 'convoy') return GN.convoy.hub();
     var groups = [
       { key: 'mafia', label: 'Social deduction' },
       { key: 'party', label: 'Party & drawing' },
       { key: 'huddle', label: 'Table games' }
     ];
-    var html = '<header class="hero"><div class="brand">🎉 Game Night</div>' +
-      '<p class="tagline">Pass the phone, scan a QR, argue with your friends. ' +
-      'Everything runs in the browser — no accounts, no installs, works offline.</p></header><div class="pad">';
+    var html = GN.topbar('The Long Table') + '<div class="pad">' +
+      '<p class="muted">One room, one phone. Pass it around so secrets stay secret.</p>';
     groups.forEach(function (g) {
       var games = GN.games.filter(function (x) { return x.group === g.key; });
       if (!games.length) return;
