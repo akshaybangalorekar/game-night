@@ -47,6 +47,7 @@
               optRow('jester', 'Jester', 'A lone troublemaker who wins if the town votes them out') +
               optRow('serial', 'Serial Killer', 'A lone killer who wins by being the last one standing') +
             '</div>' +
+            '<button class="btn big" id="devices">🌐 Play on everyone\u2019s phones</button>' +
             '<button class="btn primary big" id="next">Choose players</button>' +
           '</div>',
           function (app) {
@@ -55,6 +56,7 @@
                 var k = b.getAttribute('data-opt'); opts[k] = !opts[k]; paint();
               });
             });
+            app.querySelector('#devices').addEventListener('click', function () { GN.convoy.hub(); });
             app.querySelector('#next').addEventListener('click', function () {
               GN.playerSetup({
                 title: 'Mafia — players', min: 4, max: 20, cta: 'Deal roles',

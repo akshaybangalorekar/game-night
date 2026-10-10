@@ -11,6 +11,7 @@
 
   var CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   function randCode() { var s = ''; for (var i = 0; i < 4; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; return s; }
+  function drawQR(box, text) { box.innerHTML = ''; try { var qr = qrcode(0, 'M'); qr.addData(text); qr.make(); box.innerHTML = qr.createImgTag(6, 8); } catch (e) { box.textContent = 'QR unavailable'; } }
 
   var Net = {
     peer: null, isHost: false, room: '', myId: null, me: { name: '', car: '' },
@@ -324,7 +325,7 @@
           '<div class="or">or resume a saved room</div>' +
           '<div class="row"><input id="cresume" class="input" placeholder="Saved room code" maxlength="4" style="text-transform:uppercase"><button class="btn" id="resume">Resume</button></div>' +
           '<p class="muted small" id="cmsg"></p>' +
-          '<h3>Games in the convoy</h3>' +
+          '<h3>Games you can play together</h3>' +
           '<div class="grid">' + GN.convoyGames.map(function (g) {
             return '<div class="card static"><span class="card-emoji">' + g.emoji + '</span><span class="card-name">' + GN.esc(g.name) + '</span><span class="card-blurb">' + GN.esc(g.blurb) + '</span><span class="card-meta">' + g.min + '+ cars</span></div>';
           }).join('') + '</div>' +
@@ -380,7 +381,11 @@
         '<div class="room-box">' +
           '<div class="room-label">Room code</div>' +
           '<div class="room-code">' + GN.esc(Net.room) + '</div>' +
-          '<button class="btn small" id="share">Copy invite link</button>' +
+          '<div class="row" style="justify-content:center">' +
+            '<button class="btn small" id="share">Copy invite link</button>' +
+            '<button class="btn small" id="showqr">Show QR</button>' +
+          '</div>' +
+          '<div id="qrwrap" hidden><div class="qrbox" id="qrbox"></div><p class="qr-url">' + GN.esc(shareUrl) + '</p></div>' +
         '</div>' +
         '<h3>Cars in the convoy (' + Net.roster.length + ')</h3>' +
         '<div class="car-list">' + players + '</div>' +
@@ -393,6 +398,11 @@
         else GN.flash(app, shareUrl);
       });
       app.querySelector('#leave').addEventListener('click', GN.convoy.leave);
+      var sq = app.querySelector('#showqr');
+      if (sq) sq.addEventListener('click', function () {
+        drawQR(app.querySelector('#qrbox'), shareUrl);
+        app.querySelector('#qrwrap').hidden = false;
+      });
       app.querySelectorAll('[data-start]').forEach(function (b) {
         b.addEventListener('click', function () { startGame(b.getAttribute('data-start')); });
       });
