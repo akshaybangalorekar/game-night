@@ -40,7 +40,7 @@
     id: 'wyr', name: 'Would You Rather', emoji: '🤔', min: 2, max: 12,
     blurb: 'One question, two choices. Tap, then argue about it out loud.',
     init: function () {
-      return { game: 'wyr', i: 0, votes: {}, phase: 'vote' };
+      return { game: 'wyr', i: GN.convoy.pickUnused('wyr', WYR.length), votes: {}, phase: 'vote' };
     },
     act: function (s, pid, a, roster) {
       if (a.t === 'vote' && s.phase === 'vote') {
@@ -50,7 +50,7 @@
       } else if (a.t === 'force' && s.phase === 'vote') {
         s.phase = 'result';
       } else if (a.t === 'next') {
-        s.i = (s.i + 1) % WYR.length; s.votes = {}; s.phase = 'vote';
+        s.i = GN.convoy.pickUnused('wyr', WYR.length); s.votes = {}; s.phase = 'vote';
       }
     },
     view: function (s, ctx) {

@@ -16,7 +16,8 @@
     peer: null, isHost: false, room: '', myId: null, me: { name: '', car: '' },
     hostConn: null, conns: {}, roster: [], state: null, chat: [],
     calls: {}, audios: {}, localStream: null,
-    screen: 'hub', viewFn: null, chatOpen: false
+    screen: 'hub', viewFn: null, chatOpen: false,
+    used: {}, roomObj: null, saveTimer: null, saveDebounce: null
   };
   GN.convoy = { Net: Net };
 
@@ -54,9 +55,58 @@
     render();
   }
 
+  /* ---------------- persistence (GitHub store) ---------------- */
+  function storeReady() { return GN.store && GN.store.ready(); }
+  function canWrite() { return GN.store && GN.store.hasWrite(); }
+  function loadUsed() {
+    if (!storeReady()) return Promise.resolve();
+    return GN.store.loadUsed().then(function (u) { if (u) Net.used = u; }).catch(function () {});
+  }
+  function saveUsed() {
+    if (!canWrite()) return Promise.resolve();
+    return GN.store.saveUsed(Net.used).catch(function () {});
+  }
+  function snapshotRoom() {
+    return {
+      code: Net.room, host: Net.me.name,
+      cars: Net.roster.map(function (r) { return { name: r.name, car: r.car, host: !!r.host }; }),
+      state: Net.state || null, updatedAt: Date.now()
+    };
+  }
+  function saveRoomNow() {
+    if (!canWrite() || !Net.room) return Promise.resolve();
+    return GN.store.saveRoom(snapshotRoom()).catch(function () {});
+  }
+  function saveRoomSoon() {
+    if (!canWrite() || !Net.room) return;
+    clearTimeout(Net.saveDebounce);
+    Net.saveDebounce = setTimeout(saveRoomNow, 4000);
+  }
+  function startAutoSave() {
+    if (Net.saveTimer) return;
+    Net.saveTimer = setInterval(saveRoomNow, 180000);   // every 3 minutes while in use
+  }
+  function stopAutoSave() {
+    if (Net.saveTimer) { clearInterval(Net.saveTimer); Net.saveTimer = null; }
+    clearTimeout(Net.saveDebounce);
+  }
+
+  /* pick a prompt/scenario never used before, across all sessions */
+  function pickUnused(gameId, len) {
+    var u = Net.used[gameId] || (Net.used[gameId] = []);
+    var avail = [];
+    for (var i = 0; i < len; i++) if (u.indexOf(i) === -1) avail.push(i);
+    if (!avail.length) { Net.used[gameId] = []; for (var j = 0; j < len; j++) avail.push(j); }   // exhausted -> start over
+    var pick = avail[Math.floor(Math.random() * avail.length)];
+    Net.used[gameId].push(pick);
+    saveUsed();
+    return pick;
+  }
+  GN.convoy.pickUnused = pickUnused;
+
   /* ---------------- create / join ---------------- */
-  GN.convoy.create = function (me, cb) {
-    var room = randCode();
+  GN.convoy.create = function (me, cb, resumeCode) {
+    var room = resumeCode || randCode();
     var p = new Peer('gnc-' + room, peerOpts());
     var settled = false;
     p.on('open', function (id) {
@@ -65,6 +115,12 @@
       Net.roster = [{ id: id, name: me.name, car: me.car, voice: false, host: true }];
       Net.screen = 'lobby';
       setView(lobbyView);
+      loadUsed(); saveRoomSoon(); startAutoSave();
+      if (resumeCode && storeReady()) {
+        GN.store.loadRoom(resumeCode).then(function (rm) {
+          if (rm && rm.state) { Net.state = rm.state; Net.screen = 'game'; setView(gameView); }
+        });
+      }
       cb(null);
     });
     p.on('error', function (e) {
@@ -97,6 +153,7 @@
         conn.send({ t: 'hello', me: me });
         Net.screen = 'lobby';
         setView(lobbyView);
+        loadUsed();
         cb(null);
       });
       conn.on('data', fromHost);
@@ -108,6 +165,7 @@
   };
 
   GN.convoy.leave = function () {
+    stopAutoSave();
     try { if (Net.peer) Net.peer.destroy(); } catch (e) {}
     Object.keys(Net.audios).forEach(function (k) { try { Net.audios[k].remove(); } catch (e) {} });
     Net.peer = null; Net.isHost = false; Net.room = ''; Net.myId = null;
@@ -151,6 +209,7 @@
     if (!g || !g.act) return;
     g.act(Net.state, pid, action, Net.roster);
     broadcastState();
+    saveRoomSoon();
     render();
   }
 
@@ -160,6 +219,7 @@
     Net.state = g.init(Net.roster);
     Net.screen = 'game';
     broadcastState();
+    saveRoomSoon();
     setView(gameView);
   }
   function backToLobby() {
@@ -167,6 +227,7 @@
     Net.state = null;
     Net.screen = 'lobby';
     broadcastState();
+    saveRoomSoon();
     setView(lobbyView);
   }
 
@@ -260,6 +321,8 @@
           '<button class="btn primary big" id="create">🚗 Start a convoy</button>' +
           '<div class="or">or join one</div>' +
           '<div class="row"><input id="croom" class="input" placeholder="Room code" maxlength="4" value="' + GN.esc(preRoom) + '" style="text-transform:uppercase"><button class="btn" id="join">Join</button></div>' +
+          '<div class="or">or resume a saved room</div>' +
+          '<div class="row"><input id="cresume" class="input" placeholder="Saved room code" maxlength="4" style="text-transform:uppercase"><button class="btn" id="resume">Resume</button></div>' +
           '<p class="muted small" id="cmsg"></p>' +
           '<h3>Games in the convoy</h3>' +
           '<div class="grid">' + GN.convoyGames.map(function (g) {
@@ -283,6 +346,12 @@
             if (!err) return;
             msg(err.message === 'no-answer' ? 'No convoy answered that code. Check it with the driver.' : 'Could not join: ' + (err.type || err.message || err));
           });
+        });
+        app.querySelector('#resume').addEventListener('click', function () {
+          var code = app.querySelector('#cresume').value.trim().toUpperCase();
+          if (code.length < 4) { msg('Enter the saved room code.'); return; }
+          msg('Resuming ' + code + '…');
+          GN.convoy.create(names(), function (err) { if (err) msg('Could not resume: ' + (err.type || err.message || err)); }, code);
         });
       });
     }

@@ -268,11 +268,14 @@ window.GN = (function () {
           '<span class="hub-name">' + GN.esc(h.name) + '</span>' +
           '<span class="hub-blurb">' + GN.esc(h.blurb) + '</span>' +
           '</button>';
-      }).join('') + '</div></div>';
+      }).join('') + '</div>' +
+      '<button class="btn ghost" id="settings" style="margin-top:20px">⚙ Storage settings</button></div>';
     GN.mount(html, function (app) {
       app.querySelectorAll('[data-hub]').forEach(function (b) {
         b.addEventListener('click', function () { GN.hubView(b.getAttribute('data-hub')); });
       });
+      var st = app.querySelector('#settings');
+      if (st) st.addEventListener('click', function () { GN.store.settings(); });
     });
   };
 
