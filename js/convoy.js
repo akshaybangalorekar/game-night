@@ -13,14 +13,31 @@
       config: {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun.cloudflare.com:3478' },
           { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:3478', username: 'openrelayproject', credential: 'openrelayproject' },
           { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
         ]
       }
     };
   }
+
+  /* Keep the screen awake while a room is open. On phones, a sleeping screen suspends the
+     page, which drops the signalling socket and makes the room unreachable to others. */
+  var wakeLock = null;
+  function keepAwake() {
+    try {
+      if (navigator.wakeLock && navigator.wakeLock.request) {
+        navigator.wakeLock.request('screen').then(function (l) { wakeLock = l; }).catch(function () {});
+      }
+    } catch (e) {}
+  }
+  function releaseAwake() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {} }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && Net.peer) keepAwake();
+  });
 
   var CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   function randCode() { var s = ''; for (var i = 0; i < 4; i++) s += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; return s; }
@@ -137,6 +154,7 @@
       Net.roster = [{ id: id, name: me.name, car: me.car, voice: false, host: true }];
       Net.screen = 'lobby';
       setView(lobbyView);
+      keepAwake();
       loadUsed(); saveRoomSoon(); startAutoSave();
       if (resumeCode && storeReady()) {
         GN.store.loadRoom(resumeCode).then(function (rm) {
@@ -160,13 +178,17 @@
         });
       });
     });
+    p.on('disconnected', function () { try { p.reconnect(); } catch (e) {} });
     p.on('call', handleIncomingCall);
   };
 
   GN.convoy.join = function (room, me, cb) {
     var p = new Peer(peerOpts());
     var settled = false;
+    // if the signalling socket never opens, don't hang forever
+    var openTimer = setTimeout(function () { if (!settled) { settled = true; cb(new Error('no-signal')); } }, 15000);
     p.on('open', function (id) {
+      clearTimeout(openTimer);
       Net.peer = p; Net.isHost = false; Net.room = room; Net.myId = id; Net.me = me;
       var conn = p.connect('gnc-' + room, { reliable: true });
       conn.on('open', function () {
@@ -175,6 +197,7 @@
         conn.send({ t: 'hello', me: me });
         Net.screen = 'lobby';
         setView(lobbyView);
+        keepAwake();
         loadUsed();
         cb(null);
       });
@@ -183,11 +206,13 @@
       setTimeout(function () { if (!settled) { settled = true; cb(new Error('no-answer')); } }, 20000);
     });
     p.on('error', function (e) { if (!settled) { settled = true; cb(e); } });
+    p.on('disconnected', function () { try { p.reconnect(); } catch (e) {} });
     p.on('call', handleIncomingCall);
   };
 
   GN.convoy.leave = function () {
     stopAutoSave();
+    releaseAwake();
     try { if (Net.peer) Net.peer.destroy(); } catch (e) {}
     Object.keys(Net.audios).forEach(function (k) { try { Net.audios[k].remove(); } catch (e) {} });
     Net.peer = null; Net.isHost = false; Net.room = ''; Net.myId = null;
@@ -432,17 +457,27 @@
   }
 
   function showJoinError(room, name, err) {
-    var t = err && (err.type || err.message);
-    var why;
-    if (err && err.message === 'no-answer') why = 'That room did not answer. Make sure the friend who made it still has the app open, then try again.';
-    else if (t === 'peer-unavailable') why = 'No room with that code is open. Check the code, or ask your friend to show the QR again.';
-    else if (t === 'network' || t === 'server-error' || t === 'socket-error') why = 'Could not reach the game server. Check your internet and try again.';
-    else why = 'Could not join (' + (t || 'unknown') + '). Try again.';
+    var t = (err && (err.type || err.message)) || 'unknown';
+    var title, why;
+    if (t === 'peer-unavailable') {
+      title = 'Room ' + room + ' is not open';
+      why = 'No room with that code is open right now. Check the code, or ask your friend to show the QR again.';
+    } else if (t === 'no-signal' || t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') {
+      title = 'Could not reach the game service';
+      why = 'Your phone could not reach the connection service. Check your internet, then try again.';
+    } else if (t === 'no-answer') {
+      title = 'Room ' + room + ' did not answer';
+      why = 'The room was found, but the two phones could not link up. Keep the host\u2019s app open and on screen, stay on the same Wi-Fi if you can, and try again.';
+    } else {
+      title = 'Could not join room ' + room;
+      why = 'Something went wrong while joining. Try again.';
+    }
     GN.replace(function () {
       GN.mount(GN.topbar('Could not join') +
         '<div class="pad center">' +
-          '<div class="win-banner">😕 Room ' + GN.esc(room) + ' did not answer</div>' +
+          '<div class="win-banner">😕 ' + GN.esc(title) + '</div>' +
           '<p class="muted">' + GN.esc(why) + '</p>' +
+          '<p class="muted small">Details: ' + GN.esc(t) + '</p>' +
           '<button class="btn primary big" id="retry">Try again</button>' +
           '<button class="btn" id="backbtn">Back</button>' +
         '</div>', function (app) {
