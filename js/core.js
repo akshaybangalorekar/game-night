@@ -288,6 +288,10 @@ window.GN = (function () {
         }).join('') : '<p class="muted small">No friends yet — add one below, or share your code.</p>') + '</div>' +
         '<div class="row"><input id="fcode" class="input" placeholder="Friend code" style="text-transform:uppercase">' +
           '<input id="fname" class="input" placeholder="Their name"><button class="btn" id="addfriend">Add</button></div>' +
+        '<div class="grid" style="margin-top:8px">' +
+          '<button class="btn" id="scanbtn">📷 Scan to join</button>' +
+          '<button class="btn" id="sharebtn">🔳 Share the app</button>' +
+        '</div>' +
         '<h3>Games</h3>' +
         '<div class="grid">' + GN.catalog.map(function (g) {
           return '<button class="card' + (g.soon ? ' disabled' : '') + '" data-game="' + g.id + '"' + (g.soon ? ' disabled' : '') + '>' +
@@ -310,6 +314,8 @@ window.GN = (function () {
       app.querySelectorAll('[data-unfriend]').forEach(function (b) {
         b.addEventListener('click', function () { GN.removeFriend(b.getAttribute('data-unfriend')); GN.goHome(); });
       });
+      app.querySelector('#scanbtn').addEventListener('click', function () { GN.scanQR(); });
+      app.querySelector('#sharebtn').addEventListener('click', function () { GN.shareApp(); });
       app.querySelectorAll('[data-game]').forEach(function (b) {
         b.addEventListener('click', function () { GN.convoy.hub(b.getAttribute('data-game')); });
       });

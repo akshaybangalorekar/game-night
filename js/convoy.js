@@ -349,12 +349,13 @@
   }
 
   /* ---------------- screens ---------------- */
-  GN.convoy.hub = function (gameId) {
+  GN.convoy.hub = function (gameId, roomCode) {
     Net.screen = 'hub';
     Net.pendingGame = gameId || null;
     var preRoom = '';
-    var m = location.search.match(/[?&]room=([A-Za-z0-9]+)/); if (m) preRoom = m[1].toUpperCase();
-    var m2 = location.search.match(/[?&]name=([^&]+)/);
+    if (roomCode) preRoom = String(roomCode).toUpperCase();
+    else { var m = location.search.match(/[?&]room=([A-Za-z0-9]+)/); if (m) preRoom = m[1].toUpperCase(); }
+    var autoTried = false;
     Net.viewFn = hubView;
     GN.nav(hubView);
 
@@ -364,10 +365,9 @@
           '<p class="muted">Make a room, share the code, and play together. No app to install — share a code and you\u2019re in.</p>' +
           '<div class="field"><label>Your name</label><input id="cname" class="input" placeholder="e.g. Aarav" autocomplete="off" value="' + GN.esc((GN.me && GN.me.name) || '') + '"></div>' +
           '<button class="btn primary big" id="create">Make a room</button>' +
-          '<div class="or">or join one</div>' +
+          '<div class="or">or join a friend</div>' +
+          '<button class="btn big" id="scanjoin">📷 Scan their QR</button>' +
           '<div class="row"><input id="croom" class="input" placeholder="Room code" maxlength="4" value="' + GN.esc(preRoom) + '" style="text-transform:uppercase"><button class="btn" id="join">Join</button></div>' +
-          '<div class="or">or resume a saved room</div>' +
-          '<div class="row"><input id="cresume" class="input" placeholder="Saved room code" maxlength="4" style="text-transform:uppercase"><button class="btn" id="resume">Resume</button></div>' +
           '<p class="muted small" id="cmsg"></p>' +
           '<p class="opt-hint">Voice and chat stay inside your private room — only people with the code can join.</p>' +
         '</div>', function (app) {
@@ -379,21 +379,23 @@
           msg('Making a room…');
           GN.convoy.create(names(), function (err) { if (err) msg('Could not create: ' + (err.type || err.message || err)); });
         });
-        app.querySelector('#join').addEventListener('click', function () {
-          var room = app.querySelector('#croom').value.trim().toUpperCase();
+        function joinNow(room) {
           if (room.length < 4) { msg('Enter the 4-character room code.'); return; }
-          msg('Joining…');
+          msg('Joining ' + room + '…');
           GN.convoy.join(room, names(), function (err) {
             if (!err) return;
-            msg(err.message === 'no-answer' ? 'No convoy answered that code. Check it with the driver.' : 'Could not join: ' + (err.type || err.message || err));
+            msg(err.message === 'no-answer' ? 'No room answered that code. Check it with your friend.' : 'Could not join: ' + (err.type || err.message || err));
           });
+        }
+        app.querySelector('#join').addEventListener('click', function () {
+          joinNow(app.querySelector('#croom').value.trim().toUpperCase());
         });
-        app.querySelector('#resume').addEventListener('click', function () {
-          var code = app.querySelector('#cresume').value.trim().toUpperCase();
-          if (code.length < 4) { msg('Enter the saved room code.'); return; }
-          msg('Resuming ' + code + '…');
-          GN.convoy.create(names(), function (err) { if (err) msg('Could not resume: ' + (err.type || err.message || err)); }, code);
-        });
+        app.querySelector('#scanjoin').addEventListener('click', function () { GN.scanQR(); });
+        // arriving from a QR code or invite link: if we already know the name, just go in
+        if (preRoom && GN.me && GN.me.name && !autoTried) {
+          autoTried = true;
+          joinNow(preRoom);
+        }
       });
     }
   };
@@ -429,13 +431,11 @@
     GN.mount(GN.topbar('Room') +
       '<div class="pad">' +
         '<div class="room-box">' +
-          '<div class="room-label">Room code</div>' +
+          '<div class="room-label">Scan to join</div>' +
+          '<div class="qrbox big" id="qrbox"></div>' +
+          '<div class="room-label" style="margin-top:12px">or type the code</div>' +
           '<div class="room-code">' + GN.esc(Net.room) + '</div>' +
-          '<div class="row" style="justify-content:center">' +
-            '<button class="btn small" id="share">Copy invite link</button>' +
-            '<button class="btn small" id="showqr">Show QR</button>' +
-          '</div>' +
-          '<div id="qrwrap" hidden><div class="qrbox" id="qrbox"></div><p class="qr-url">' + GN.esc(shareUrl) + '</p></div>' +
+          '<button class="btn small" id="share">Copy invite link</button>' +
         '</div>' +
         '<h3>Players (' + Net.roster.length + ')</h3>' +
         '<div class="car-list">' + players + '</div>' +
@@ -448,11 +448,8 @@
         else GN.flash(app, shareUrl);
       });
       app.querySelector('#leave').addEventListener('click', GN.convoy.leave);
-      var sq = app.querySelector('#showqr');
-      if (sq) sq.addEventListener('click', function () {
-        drawQR(app.querySelector('#qrbox'), shareUrl);
-        app.querySelector('#qrwrap').hidden = false;
-      });
+      var qb = app.querySelector('#qrbox');
+      if (qb) (GN.drawQR || drawQR)(qb, shareUrl, 6);
       app.querySelectorAll('[data-start]').forEach(function (b) {
         b.addEventListener('click', function () { startGame(b.getAttribute('data-start')); });
       });

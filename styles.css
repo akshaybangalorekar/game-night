@@ -307,3 +307,10 @@ textarea.input{resize:vertical;line-height:1.45}
 .ah-scores strong{font-size:20px}
 .ah-wrap{display:flex;justify-content:center;margin:10px 0}
 .ah-wrap canvas{width:min(78vw,320px);height:auto;border-radius:16px;border:1px solid var(--line);touch-action:none;background:#0d1730}
+
+/* ---------------- share + scan ---------------- */
+.qrbox.big{padding:18px}
+.qrbox.big img{width:min(300px,74vw)}
+.scan-wrap{position:relative;margin:14px auto;width:min(84vw,360px);aspect-ratio:3/4;border-radius:18px;overflow:hidden;background:#000}
+.scan-wrap video{width:100%;height:100%;object-fit:cover;display:block}
+.scan-frame{position:absolute;inset:14%;border:3px solid var(--accent);border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.28)}
