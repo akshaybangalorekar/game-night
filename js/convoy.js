@@ -18,7 +18,8 @@
     hostConn: null, conns: {}, roster: [], state: null, chat: [],
     calls: {}, audios: {}, localStream: null,
     screen: 'hub', viewFn: null, chatOpen: false,
-    used: {}, roomObj: null, saveTimer: null, saveDebounce: null, pendingGame: null
+    used: {}, roomObj: null, saveTimer: null, saveDebounce: null, pendingGame: null,
+    micUntil: 0, micTimer: null, micTicker: null
   };
   GN.convoy = { Net: Net };
 
@@ -75,16 +76,16 @@
     };
   }
   function saveRoomNow() {
-    if (!canWrite() || !Net.room) return Promise.resolve();
+    if (!canWrite() || !Net.room || !Net.isHost) return Promise.resolve();   // only the host's device saves
     return GN.store.saveRoom(snapshotRoom()).catch(function () {});
   }
   function saveRoomSoon() {
-    if (!canWrite() || !Net.room) return;
+    if (!canWrite() || !Net.room || !Net.isHost) return;
     clearTimeout(Net.saveDebounce);
     Net.saveDebounce = setTimeout(saveRoomNow, 4000);
   }
   function startAutoSave() {
-    if (Net.saveTimer) return;
+    if (Net.saveTimer || !Net.isHost) return;
     Net.saveTimer = setInterval(saveRoomNow, 180000);   // every 3 minutes while in use
   }
   function stopAutoSave() {
@@ -262,20 +263,54 @@
     var c = document.querySelector('#chatcount'); if (c) c.textContent = Net.chat.length ? Net.chat.length : '';
   }
 
-  /* ---------------- voice (WebRTC mesh, push-to-talk) ---------------- */
+  /* ---------------- voice (WebRTC mesh; mic runs for 5 minutes) ---------------- */
+  var MIC_MS = 5 * 60 * 1000;
+  function micEnabled() {
+    return !!(Net.localStream && Net.localStream.getAudioTracks().some(function (t) { return t.enabled; }));
+  }
+  function micLabel() {
+    if (!micEnabled()) return '🎙 Turn on mic';
+    var left = Math.max(0, Math.ceil((Net.micUntil - Date.now()) / 1000));
+    return '🎙 Mic on · ' + Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+  }
+  function updateMicBtn() {
+    var b = document.getElementById('ptt');
+    if (b) { b.textContent = micLabel(); b.classList.toggle('talking', micEnabled()); }
+  }
+  function micTick() {
+    if (Net.micTicker) return;
+    Net.micTicker = setInterval(function () {
+      if (!micEnabled()) { clearInterval(Net.micTicker); Net.micTicker = null; return; }
+      updateMicBtn();
+    }, 1000);
+  }
   GN.convoy.enableMic = function () {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return Promise.reject(new Error('no-mic-api'));
+    if (Net.localStream) return Promise.resolve(true);
     return navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(function (stream) {
       Net.localStream = stream;
-      stream.getAudioTracks().forEach(function (t) { t.enabled = false; });  // start muted (push-to-talk)
+      stream.getAudioTracks().forEach(function (t) { t.enabled = false; });
       if (Net.isHost) setVoice(Net.myId, true); else sendToHost({ t: 'voice' });
       syncVoice(); render();
       return true;
     });
   };
-  GN.convoy.ptt = function (on) {
-    if (!Net.localStream) return;
-    Net.localStream.getAudioTracks().forEach(function (t) { t.enabled = !!on; });
+  GN.convoy.micOn = function () {
+    return GN.convoy.enableMic().then(function () {
+      Net.localStream.getAudioTracks().forEach(function (t) { t.enabled = true; });
+      Net.micUntil = Date.now() + MIC_MS;
+      clearTimeout(Net.micTimer);
+      Net.micTimer = setTimeout(function () { GN.convoy.micOff(true); }, MIC_MS);
+      micTick(); updateMicBtn();
+      return true;
+    });
+  };
+  GN.convoy.micOff = function (auto) {
+    if (Net.localStream) Net.localStream.getAudioTracks().forEach(function (t) { t.enabled = false; });
+    clearTimeout(Net.micTimer); Net.micTimer = null; Net.micUntil = 0;
+    if (Net.micTicker) { clearInterval(Net.micTicker); Net.micTicker = null; }
+    updateMicBtn();
+    if (auto) GN.flash(document.getElementById('app'), 'Mic turned off after 5 minutes');
   };
   function syncVoice() {
     if (!Net.localStream || !Net.peer) return;
@@ -431,7 +466,7 @@
   function dockHTML() {
     return '<div class="dock">' +
       (Net.isHost ? '<button class="btn small" id="docklobby" title="Back to lobby">⏹</button>' : '') +
-      '<button class="ptt' + (Net.localStream ? ' live' : '') + '" id="ptt">' + (Net.localStream ? '🎙 Hold to talk' : '🎙 Enable mic') + '</button>' +
+      '<button class="ptt' + (micEnabled() ? ' talking' : '') + '" id="ptt">' + micLabel() + '</button>' +
       '<button class="btn small" id="chatbtn">💬<span id="chatcount">' + (Net.chat.length || '') + '</span></button>' +
       '</div>' +
       '<div class="chat-panel" id="chatpanel"' + (Net.chatOpen ? '' : ' hidden') + '>' + chatHTML() + '</div>';
@@ -439,16 +474,11 @@
   function bindDock(app) {
     var ptt = app.querySelector('#ptt');
     if (ptt) {
-      if (Net.localStream) {
-        ptt.addEventListener('pointerdown', function (e) { e.preventDefault(); GN.convoy.ptt(true); ptt.classList.add('talking'); });
-        var stop = function () { GN.convoy.ptt(false); ptt.classList.remove('talking'); };
-        ptt.addEventListener('pointerup', stop); ptt.addEventListener('pointerleave', stop); ptt.addEventListener('pointercancel', stop);
-        ptt.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-      } else {
-        ptt.addEventListener('click', function () {
-          GN.convoy.enableMic().then(function () { render(); }).catch(function () { GN.flash(app, 'Microphone blocked — chat still works.'); });
-        });
-      }
+      ptt.addEventListener('click', function () {
+        if (micEnabled()) { GN.convoy.micOff(false); return; }
+        GN.convoy.micOn().catch(function () { GN.flash(app, 'Microphone blocked — chat still works.'); });
+      });
+      updateMicBtn();
     }
     var dl = app.querySelector('#docklobby');
     if (dl) dl.addEventListener('click', function () { Net.chatOpen = false; backToLobby(); });

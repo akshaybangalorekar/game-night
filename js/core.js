@@ -254,8 +254,8 @@ window.GN = (function () {
   /* ---------------- home: identity, friends, games ---------------- */
   GN.catalog = [
     { id: 'uno', name: 'Uno', emoji: '🃏', min: 2, max: 6, blurb: 'Match colour or number. First to empty their hand wins.' },
-    { id: 'ludo', name: 'Ludo', emoji: '🎲', min: 2, max: 4, blurb: 'Roll the dice, race your tokens home.', soon: true },
-    { id: 'chess', name: 'Chess', emoji: '♟️', min: 2, max: 2, blurb: 'The classic duel of wits.', soon: true },
+    { id: 'ludo', name: 'Ludo', emoji: '🎲', min: 2, max: 4, blurb: 'Roll the dice, race your tokens home.' },
+    { id: 'chess', name: 'Chess', emoji: '♟️', min: 2, max: 2, blurb: 'The classic duel — castling, en passant and all.' },
     { id: 'airhockey', name: 'Air Hockey', emoji: '🏒', min: 2, max: 2, blurb: 'Fast paddles — best when you are on the same Wi-Fi.', soon: true },
     { id: 'mafia-room', name: 'Mafia', emoji: '🔫', min: 4, max: 16, blurb: 'Hidden roles dealt to every phone. No narrator needed.' }
   ];
@@ -277,9 +277,8 @@ window.GN = (function () {
         '<div class="me-card">' +
           '<input id="myname" class="input" placeholder="Your name" value="' + GN.esc(me.name) + '">' +
           '<div class="me-code">Friend code <strong>' + GN.esc(me.code) + '</strong>' +
-            '<button class="btn small" id="copycode">Copy</button>' +
-            '<button class="btn small" id="newcode">New</button></div>' +
-          '<p class="opt-hint">Share your code so friends can add you.</p>' +
+            '<button class="btn small" id="copycode">Copy</button></div>' +
+          '<p class="opt-hint">This code is yours for good — share it so friends can add you.</p>' +
         '</div>' +
         '<h3>Friends (' + friends.length + ')</h3>' +
         '<div class="friend-list">' + (friends.length ? friends.map(function (f) {
@@ -303,7 +302,6 @@ window.GN = (function () {
     GN.mount(html, function (app) {
       app.querySelector('#myname').addEventListener('change', function (e) { GN.me.name = e.target.value.trim(); GN.saveMe(); });
       app.querySelector('#copycode').addEventListener('click', function () { GN.copy(app, GN.me.code); });
-      app.querySelector('#newcode').addEventListener('click', function () { GN.newCode(); GN.goHome(); });
       app.querySelector('#addfriend').addEventListener('click', function () {
         var r = GN.addFriend(app.querySelector('#fcode').value, app.querySelector('#fname').value);
         if (!r.ok) { GN.flash(app, r.why); return; }

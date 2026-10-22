@@ -6,9 +6,9 @@ with **voice** and **chat** built in.
 ## Games
 
 - **Uno** — match colour or number, skips, reverses, +2, wild, wild +4. First to empty their hand wins.
+- **Ludo** — roll a 6 to leave the yard, race four tokens home, send friends back.
+- **Chess** — full rules: castling, en passant, promotion, check and checkmate.
 - **Mafia** — hidden roles dealt privately to every phone; the app runs the nights and the votes.
-- **Ludo** — *coming soon*
-- **Chess** — *coming soon*
 - **Air Hockey** — *coming soon* (real-time; best when everyone is on the same Wi-Fi)
 
 ## How it works
@@ -16,7 +16,9 @@ with **voice** and **chat** built in.
 1. **Open the app** — you get a name and a **friend code** (like `YJB YQW`).
 2. **Add friends** by typing their code. Your friends list is kept on your device.
 3. **Pick a game**, then **make a room** and share the **code, link or QR**. Friends tap in and you play.
-4. **Talk as you play** — hold the mic to talk, or use the chat with one-tap emoji.
+4. **Talk as you play** — tap **Turn on mic** and your mic stays live for **5 minutes** (then it
+   switches itself off, so nothing is left open by accident). Tap again any time to re-open it.
+   Or use the chat with one-tap emoji.
 
 No accounts, no sign-ups, no installs. It's a static site that runs in the browser.
 
