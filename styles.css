@@ -314,3 +314,13 @@ textarea.input{resize:vertical;line-height:1.45}
 .scan-wrap{position:relative;margin:14px auto;width:min(84vw,360px);aspect-ratio:3/4;border-radius:18px;overflow:hidden;background:#000}
 .scan-wrap video{width:100%;height:100%;object-fit:cover;display:block}
 .scan-frame{position:absolute;inset:14%;border:3px solid var(--accent);border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.28)}
+
+/* ---------------- how-to + invites ---------------- */
+.howto{background:linear-gradient(160deg,#20254f,#181b38);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+.howto-title{font-weight:800;margin-bottom:10px}
+.howto-step{display:flex;gap:10px;align-items:flex-start;margin:8px 0;font-size:14px;color:#dfe2ff}
+.howto-step span{flex:0 0 auto;width:24px;height:24px;border-radius:999px;background:var(--accent);color:#fff;font-weight:800;
+  display:flex;align-items:center;justify-content:center;font-size:13px}
+.invite-list{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:8px 0}
+.invite-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line)}
+.invite-row:first-child{border-top:0}

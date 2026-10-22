@@ -272,13 +272,32 @@ window.GN = (function () {
     var me = GN.me || { name: '', code: '' };
     var friends = GN.friends || [];
     var html = '<header class="hero"><div class="brand">🎉 Game Night</div>' +
-      '<p class="tagline">Add your friends, pick a game, play together. Voice and chat built in.</p></header>' +
+      '<p class="tagline">Uno, Ludo, Chess, Air Hockey and Mafia — each on your own phone, with voice and chat.</p></header>' +
       '<div class="pad">' +
+        '<div class="howto">' +
+          '<div class="howto-title">Playing together, in 3 steps</div>' +
+          '<div class="howto-step"><span>1</span><div>Pick a game below. You get a <b>room with a QR code</b>.</div></div>' +
+          '<div class="howto-step"><span>2</span><div>Friends point a camera at the QR, or tap <b>Join a friend\u2019s game</b>.</div></div>' +
+          '<div class="howto-step"><span>3</span><div>When everyone is in the room, tap <b>Start</b>.</div></div>' +
+        '</div>' +
+        '<div class="grid">' +
+          '<button class="btn primary" id="joinbtn">🔗 Join a friend\u2019s game</button>' +
+          '<button class="btn" id="sharebtn">🔳 Share the app</button>' +
+        '</div>' +
+        '<h3>Pick a game to start</h3>' +
+        '<div class="grid">' + GN.catalog.map(function (g) {
+          return '<button class="card' + (g.soon ? ' disabled' : '') + '" data-game="' + g.id + '"' + (g.soon ? ' disabled' : '') + '>' +
+            '<span class="card-emoji">' + g.emoji + '</span>' +
+            '<span class="card-name">' + GN.esc(g.name) + '</span>' +
+            '<span class="card-blurb">' + GN.esc(g.blurb) + '</span>' +
+            '<span class="card-meta">' + g.min + (g.max > g.min ? '–' + g.max : '') + ' players</span>' +
+            '</button>';
+        }).join('') + '</div>' +
         '<div class="me-card">' +
           '<input id="myname" class="input" placeholder="Your name" value="' + GN.esc(me.name) + '">' +
-          '<div class="me-code">Friend code <strong>' + GN.esc(me.code) + '</strong>' +
+          '<div class="me-code">Your friend code <strong>' + GN.esc(me.code) + '</strong>' +
             '<button class="btn small" id="copycode">Copy</button></div>' +
-          '<p class="opt-hint">This code is yours for good — share it so friends can add you.</p>' +
+          '<p class="opt-hint">Friends add you with this code — it never changes.</p>' +
         '</div>' +
         '<h3>Friends (' + friends.length + ')</h3>' +
         '<div class="friend-list">' + (friends.length ? friends.map(function (f) {
@@ -288,19 +307,7 @@ window.GN = (function () {
         }).join('') : '<p class="muted small">No friends yet — add one below, or share your code.</p>') + '</div>' +
         '<div class="row"><input id="fcode" class="input" placeholder="Friend code" style="text-transform:uppercase">' +
           '<input id="fname" class="input" placeholder="Their name"><button class="btn" id="addfriend">Add</button></div>' +
-        '<div class="grid" style="margin-top:8px">' +
-          '<button class="btn" id="scanbtn">📷 Scan to join</button>' +
-          '<button class="btn" id="sharebtn">🔳 Share the app</button>' +
-        '</div>' +
-        '<h3>Games</h3>' +
-        '<div class="grid">' + GN.catalog.map(function (g) {
-          return '<button class="card' + (g.soon ? ' disabled' : '') + '" data-game="' + g.id + '"' + (g.soon ? ' disabled' : '') + '>' +
-            '<span class="card-emoji">' + g.emoji + '</span>' +
-            '<span class="card-name">' + GN.esc(g.name) + '</span>' +
-            '<span class="card-blurb">' + GN.esc(g.blurb) + '</span>' +
-            '<span class="card-meta">' + g.min + (g.max > g.min ? '–' + g.max : '') + ' players' + (g.soon ? ' · soon' : '') + '</span>' +
-            '</button>';
-        }).join('') + '</div>' +
+        '<p class="opt-hint">Your friends appear in every room, so you can invite them with one tap.</p>' +
         '<button class="btn ghost" id="settings" style="margin-top:20px">⚙ Storage settings</button>' +
       '</div>';
     GN.mount(html, function (app) {
@@ -314,7 +321,7 @@ window.GN = (function () {
       app.querySelectorAll('[data-unfriend]').forEach(function (b) {
         b.addEventListener('click', function () { GN.removeFriend(b.getAttribute('data-unfriend')); GN.goHome(); });
       });
-      app.querySelector('#scanbtn').addEventListener('click', function () { GN.scanQR(); });
+      app.querySelector('#joinbtn').addEventListener('click', function () { GN.convoy.hub(); });
       app.querySelector('#sharebtn').addEventListener('click', function () { GN.shareApp(); });
       app.querySelectorAll('[data-game]').forEach(function (b) {
         b.addEventListener('click', function () { GN.convoy.hub(b.getAttribute('data-game')); });

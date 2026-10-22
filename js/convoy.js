@@ -362,10 +362,10 @@
     function hubView() {
       GN.mount(GN.topbar((GN.gameMeta(gameId) && GN.gameMeta(gameId).name) || 'Play together') +
         '<div class="pad">' +
-          '<p class="muted">Make a room, share the code, and play together. No app to install — share a code and you\u2019re in.</p>' +
+          '<p class="muted">Start a room and share the QR, or join one a friend already started.</p>' +
           '<div class="field"><label>Your name</label><input id="cname" class="input" placeholder="e.g. Aarav" autocomplete="off" value="' + GN.esc((GN.me && GN.me.name) || '') + '"></div>' +
-          '<button class="btn primary big" id="create">Make a room</button>' +
-          '<div class="or">or join a friend</div>' +
+          '<button class="btn primary big" id="create">➕ Start a new room</button>' +
+          '<div class="or">or join a room your friend started</div>' +
           '<button class="btn big" id="scanjoin">📷 Scan their QR</button>' +
           '<div class="row"><input id="croom" class="input" placeholder="Room code" maxlength="4" value="' + GN.esc(preRoom) + '" style="text-transform:uppercase"><button class="btn" id="join">Join</button></div>' +
           '<p class="muted small" id="cmsg"></p>' +
@@ -400,6 +400,22 @@
     }
   };
 
+  function inviteFriend(app, code) {
+    var f = GN.friendByCode ? GN.friendByCode(code) : null;
+    var name = f ? f.name : 'your friend';
+    var url = location.origin + location.pathname + '?room=' + Net.room;
+    var text = 'Join my Game Night room! Tap this link: ' + url;
+    if (navigator.share) {
+      navigator.share({ title: 'Game Night', text: text }).catch(function () {});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(
+        function () { GN.flash(app, 'Invite copied — send it to ' + name); },
+        function () { GN.flash(app, url); });
+    } else {
+      GN.flash(app, url);
+    }
+  }
+
   function lobbyView() {
     var shareUrl = location.origin + location.pathname + '?room=' + Net.room;
     var players = Net.roster.map(function (r) {
@@ -428,8 +444,17 @@
       hostControls = '<p class="muted center">Waiting for the host to start…</p>';
     }
 
+    var myFriends = GN.friends || [];
+    var inviteHTML = '<h3>Invite your friends</h3>' + (myFriends.length
+      ? '<div class="invite-list">' + myFriends.map(function (f) {
+          return '<div class="invite-row"><span class="friend-name">' + GN.esc(f.name) + '</span>' +
+            '<button class="btn small" data-invite="' + GN.esc(f.code) + '">Invite</button></div>';
+        }).join('') + '</div>'
+      : '<p class="muted small">No friends yet — add some on the home screen and they will appear here.</p>');
+
     GN.mount(GN.topbar('Room') +
       '<div class="pad">' +
+        '<p class="muted small">Show this QR to your friends so they can join.</p>' +
         '<div class="room-box">' +
           '<div class="room-label">Scan to join</div>' +
           '<div class="qrbox big" id="qrbox"></div>' +
@@ -437,8 +462,9 @@
           '<div class="room-code">' + GN.esc(Net.room) + '</div>' +
           '<button class="btn small" id="share">Copy invite link</button>' +
         '</div>' +
-        '<h3>Players (' + Net.roster.length + ')</h3>' +
+        '<h3>Players in the room (' + Net.roster.length + ')</h3>' +
         '<div class="car-list">' + players + '</div>' +
+        inviteHTML +
         hostControls +
         '<button class="btn ghost" id="leave">Leave room</button>' +
       '</div>' + dockHTML(), function (app) {
@@ -448,6 +474,9 @@
         else GN.flash(app, shareUrl);
       });
       app.querySelector('#leave').addEventListener('click', GN.convoy.leave);
+      app.querySelectorAll('[data-invite]').forEach(function (b) {
+        b.addEventListener('click', function () { inviteFriend(app, b.getAttribute('data-invite')); });
+      });
       var qb = app.querySelector('#qrbox');
       if (qb) (GN.drawQR || drawQR)(qb, shareUrl, 6);
       app.querySelectorAll('[data-start]').forEach(function (b) {

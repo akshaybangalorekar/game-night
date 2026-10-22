@@ -14,13 +14,16 @@ with **voice** and **chat** built in.
 ## How it works
 
 1. **Open the app** — you get a name and a **friend code** (like `YJB YQW`).
-2. **Add friends** by typing their code. Your friends list is kept on your device.
+2. **Add friends** by typing their code. Your friends list is kept on your device and shows up
+   inside every room, so you can invite them with one tap.
 3. **Pick a game**, then **make a room**. A big **QR code** appears — friends just point a camera
    at it (or tap **Scan to join** in the app) and they're in. No typing needed. There's also a
    4-letter code and a copy-link button as backups.
 4. **Share the app itself** with the **🔳 Share the app** button on the home screen — it shows a QR
    a friend can scan to open Game Night.
-5. **Talk as you play** — tap **Turn on mic** and your mic stays live for **5 minutes** (then it
+5. **Invite from your friends list** — inside a room, tap **Invite** next to a friend to send them
+   the room link (opens your phone's share sheet, or copies the link).
+6. **Talk as you play** — tap **Turn on mic** and your mic stays live for **5 minutes** (then it
    switches itself off, so nothing is left open by accident). Tap again any time to re-open it.
    Or use the chat with one-tap emoji.
 
