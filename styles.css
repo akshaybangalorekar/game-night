@@ -250,3 +250,28 @@ textarea.input{resize:vertical;line-height:1.45}
   font-size:11.5px;line-height:1.2;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;text-align:center}
 .bingo-cell.on{background:linear-gradient(180deg,#16a34a,#15803d);border-color:transparent;font-weight:700}
 @media (max-width:420px){ .bingo-cell{font-size:10.5px} .ttl-btn{font-size:24px} }
+
+/* ---------------- me + friends ---------------- */
+.me-card{background:linear-gradient(160deg,#2a2350,#1a1c3a);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:8px}
+.me-code{margin-top:12px;font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.me-code strong{color:var(--ink);letter-spacing:3px;font-size:18px}
+.friend-list{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:8px 0}
+.friend-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid var(--line)}
+.friend-row:first-child{border-top:0}
+.friend-name{flex:1;font-weight:600}
+.friend-code{color:var(--muted);font-size:13px;letter-spacing:2px}
+
+/* ---------------- uno ---------------- */
+.uno-table{display:flex;align-items:center;gap:16px;margin:14px 0}
+.uno-pile{position:relative}
+.uno-card{width:56px;height:80px;border-radius:12px;border:3px solid #fff;color:#fff;font-size:22px;font-weight:800;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.35);font-family:inherit}
+.uno-card.big{width:78px;height:112px;font-size:30px;cursor:default}
+.uno-card.playable{outline:3px solid var(--good);outline-offset:2px}
+.uno-color{position:absolute;right:-6px;bottom:-6px;width:22px;height:22px;border-radius:999px;border:2px solid #fff}
+.uno-info{flex:1}
+.uno-hand{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.color-pick{position:fixed;inset:0;background:rgba(10,10,20,.82);z-index:60;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px}
+.color-row{display:flex;gap:16px}
+.color-pick .swatch{width:64px;height:64px;border-radius:999px;border:3px solid #fff;cursor:pointer}

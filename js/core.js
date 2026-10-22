@@ -251,65 +251,72 @@ window.GN = (function () {
     step(0);
   };
 
-  /* ---------------- home: two hubs ---------------- */
-  GN.hubs = [
-    { key: 'table', name: 'The Long Table', emoji: '🕯️', cls: 'hub-table',
-      blurb: 'Everyone in one room, one phone passed around. Mafia, drawing and bluffing.' },
-    { key: 'convoy', name: 'The Convoy', emoji: '🚗', cls: 'hub-convoy',
-      blurb: 'Different cars, one game. Talk, guess and spot things on the road.' }
+  /* ---------------- home: identity, friends, games ---------------- */
+  GN.catalog = [
+    { id: 'uno', name: 'Uno', emoji: '🃏', min: 2, max: 6, blurb: 'Match colour or number. First to empty their hand wins.' },
+    { id: 'ludo', name: 'Ludo', emoji: '🎲', min: 2, max: 4, blurb: 'Roll the dice, race your tokens home.', soon: true },
+    { id: 'chess', name: 'Chess', emoji: '♟️', min: 2, max: 2, blurb: 'The classic duel of wits.', soon: true },
+    { id: 'airhockey', name: 'Air Hockey', emoji: '🏒', min: 2, max: 2, blurb: 'Fast paddles — best when you are on the same Wi-Fi.', soon: true },
+    { id: 'mafia-room', name: 'Mafia', emoji: '🔫', min: 4, max: 16, blurb: 'Hidden roles dealt to every phone. No narrator needed.' }
   ];
+  GN.gameMeta = function (id) { for (var i = 0; i < GN.catalog.length; i++) if (GN.catalog[i].id === id) return GN.catalog[i]; return null; };
+
+  GN.copy = function (app, text) {
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(
+      function () { GN.flash(app, 'Copied: ' + text); },
+      function () { GN.flash(app, text); });
+    else GN.flash(app, text);
+  };
 
   GN.homeView = function () {
+    var me = GN.me || { name: '', code: '' };
+    var friends = GN.friends || [];
     var html = '<header class="hero"><div class="brand">🎉 Game Night</div>' +
-      '<p class="tagline">Pick a road. Everything runs in the browser — no accounts, no installs.</p></header>' +
-      '<div class="pad"><div class="hubs">' + GN.hubs.map(function (h) {
-        return '<button class="hub-card ' + h.cls + '" data-hub="' + h.key + '">' +
-          '<span class="hub-emoji">' + h.emoji + '</span>' +
-          '<span class="hub-name">' + GN.esc(h.name) + '</span>' +
-          '<span class="hub-blurb">' + GN.esc(h.blurb) + '</span>' +
-          '</button>';
-      }).join('') + '</div>' +
-      '<button class="btn ghost" id="settings" style="margin-top:20px">⚙ Storage settings</button></div>';
+      '<p class="tagline">Add your friends, pick a game, play together. Voice and chat built in.</p></header>' +
+      '<div class="pad">' +
+        '<div class="me-card">' +
+          '<input id="myname" class="input" placeholder="Your name" value="' + GN.esc(me.name) + '">' +
+          '<div class="me-code">Friend code <strong>' + GN.esc(me.code) + '</strong>' +
+            '<button class="btn small" id="copycode">Copy</button>' +
+            '<button class="btn small" id="newcode">New</button></div>' +
+          '<p class="opt-hint">Share your code so friends can add you.</p>' +
+        '</div>' +
+        '<h3>Friends (' + friends.length + ')</h3>' +
+        '<div class="friend-list">' + (friends.length ? friends.map(function (f) {
+          return '<div class="friend-row"><span class="friend-name">' + GN.esc(f.name) + '</span>' +
+            '<span class="friend-code">' + GN.esc(f.code) + '</span>' +
+            '<button class="chip-x" data-unfriend="' + GN.esc(f.code) + '" aria-label="Remove">&times;</button></div>';
+        }).join('') : '<p class="muted small">No friends yet — add one below, or share your code.</p>') + '</div>' +
+        '<div class="row"><input id="fcode" class="input" placeholder="Friend code" style="text-transform:uppercase">' +
+          '<input id="fname" class="input" placeholder="Their name"><button class="btn" id="addfriend">Add</button></div>' +
+        '<h3>Games</h3>' +
+        '<div class="grid">' + GN.catalog.map(function (g) {
+          return '<button class="card' + (g.soon ? ' disabled' : '') + '" data-game="' + g.id + '"' + (g.soon ? ' disabled' : '') + '>' +
+            '<span class="card-emoji">' + g.emoji + '</span>' +
+            '<span class="card-name">' + GN.esc(g.name) + '</span>' +
+            '<span class="card-blurb">' + GN.esc(g.blurb) + '</span>' +
+            '<span class="card-meta">' + g.min + (g.max > g.min ? '–' + g.max : '') + ' players' + (g.soon ? ' · soon' : '') + '</span>' +
+            '</button>';
+        }).join('') + '</div>' +
+        '<button class="btn ghost" id="settings" style="margin-top:20px">⚙ Storage settings</button>' +
+      '</div>';
     GN.mount(html, function (app) {
-      app.querySelectorAll('[data-hub]').forEach(function (b) {
-        b.addEventListener('click', function () { GN.hubView(b.getAttribute('data-hub')); });
+      app.querySelector('#myname').addEventListener('change', function (e) { GN.me.name = e.target.value.trim(); GN.saveMe(); });
+      app.querySelector('#copycode').addEventListener('click', function () { GN.copy(app, GN.me.code); });
+      app.querySelector('#newcode').addEventListener('click', function () { GN.newCode(); GN.goHome(); });
+      app.querySelector('#addfriend').addEventListener('click', function () {
+        var r = GN.addFriend(app.querySelector('#fcode').value, app.querySelector('#fname').value);
+        if (!r.ok) { GN.flash(app, r.why); return; }
+        GN.goHome();
+      });
+      app.querySelectorAll('[data-unfriend]').forEach(function (b) {
+        b.addEventListener('click', function () { GN.removeFriend(b.getAttribute('data-unfriend')); GN.goHome(); });
+      });
+      app.querySelectorAll('[data-game]').forEach(function (b) {
+        b.addEventListener('click', function () { GN.convoy.hub(b.getAttribute('data-game')); });
       });
       var st = app.querySelector('#settings');
       if (st) st.addEventListener('click', function () { GN.store.settings(); });
-    });
-  };
-
-  GN.hubView = function (key) {
-    if (key === 'convoy') return GN.convoy.hub();
-    var groups = [
-      { key: 'mafia', label: 'Social deduction' },
-      { key: 'party', label: 'Party & drawing' },
-      { key: 'huddle', label: 'Table games' }
-    ];
-    var html = GN.topbar('The Long Table') + '<div class="pad">' +
-      '<p class="muted">One room, one phone. Pass it around so secrets stay secret.</p>';
-    groups.forEach(function (g) {
-      var games = GN.games.filter(function (x) { return x.group === g.key; });
-      if (!games.length) return;
-      html += '<h2 class="group-title">' + g.label + '</h2><div class="grid">';
-      games.forEach(function (gm) {
-        html += '<button class="card" data-game="' + gm.id + '">' +
-          '<span class="card-emoji">' + gm.emoji + '</span>' +
-          '<span class="card-name">' + GN.esc(gm.name) + '</span>' +
-          '<span class="card-blurb">' + GN.esc(gm.blurb) + '</span>' +
-          '<span class="card-meta">' + gm.min + (gm.max ? '–' + gm.max : '+') + ' players</span>' +
-          '</button>';
-      });
-      html += '</div>';
-    });
-    html += '</div>';
-    GN.mount(html, function (app) {
-      app.querySelectorAll('[data-game]').forEach(function (b) {
-        b.addEventListener('click', function () {
-          var g = GN.gameById(b.getAttribute('data-game'));
-          if (g) g.start();
-        });
-      });
     });
   };
 

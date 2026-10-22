@@ -18,7 +18,7 @@
     hostConn: null, conns: {}, roster: [], state: null, chat: [],
     calls: {}, audios: {}, localStream: null,
     screen: 'hub', viewFn: null, chatOpen: false,
-    used: {}, roomObj: null, saveTimer: null, saveDebounce: null
+    used: {}, roomObj: null, saveTimer: null, saveDebounce: null, pendingGame: null
   };
   GN.convoy = { Net: Net };
 
@@ -305,8 +305,9 @@
   }
 
   /* ---------------- screens ---------------- */
-  GN.convoy.hub = function () {
+  GN.convoy.hub = function (gameId) {
     Net.screen = 'hub';
+    Net.pendingGame = gameId || null;
     var preRoom = '';
     var m = location.search.match(/[?&]room=([A-Za-z0-9]+)/); if (m) preRoom = m[1].toUpperCase();
     var m2 = location.search.match(/[?&]name=([^&]+)/);
@@ -314,29 +315,24 @@
     GN.nav(hubView);
 
     function hubView() {
-      GN.mount(GN.topbar('The Convoy') +
+      GN.mount(GN.topbar((GN.gameMeta(gameId) && GN.gameMeta(gameId).name) || 'Play together') +
         '<div class="pad">' +
-          '<p class="muted">One game across every car. No app to install — share a code and you\u2019re in.</p>' +
-          '<div class="field"><label>Your name</label><input id="cname" class="input" placeholder="e.g. Aarav" autocomplete="off" value="' + (m2 ? GN.esc(decodeURIComponent(m2[1])) : '') + '"></div>' +
-          '<div class="field"><label>Your car</label><input id="ccar" class="input" placeholder="e.g. Blue Swift" autocomplete="off"></div>' +
-          '<button class="btn primary big" id="create">🚗 Start a convoy</button>' +
+          '<p class="muted">Make a room, share the code, and play together. No app to install — share a code and you\u2019re in.</p>' +
+          '<div class="field"><label>Your name</label><input id="cname" class="input" placeholder="e.g. Aarav" autocomplete="off" value="' + GN.esc((GN.me && GN.me.name) || '') + '"></div>' +
+          '<button class="btn primary big" id="create">Make a room</button>' +
           '<div class="or">or join one</div>' +
           '<div class="row"><input id="croom" class="input" placeholder="Room code" maxlength="4" value="' + GN.esc(preRoom) + '" style="text-transform:uppercase"><button class="btn" id="join">Join</button></div>' +
           '<div class="or">or resume a saved room</div>' +
           '<div class="row"><input id="cresume" class="input" placeholder="Saved room code" maxlength="4" style="text-transform:uppercase"><button class="btn" id="resume">Resume</button></div>' +
           '<p class="muted small" id="cmsg"></p>' +
-          '<h3>Games you can play together</h3>' +
-          '<div class="grid">' + GN.convoyGames.map(function (g) {
-            return '<div class="card static"><span class="card-emoji">' + g.emoji + '</span><span class="card-name">' + GN.esc(g.name) + '</span><span class="card-blurb">' + GN.esc(g.blurb) + '</span><span class="card-meta">' + g.min + '+ cars</span></div>';
-          }).join('') + '</div>' +
           '<p class="opt-hint">Voice and chat stay inside your private room — only people with the code can join.</p>' +
         '</div>', function (app) {
         function names() {
-          return { name: app.querySelector('#cname').value.trim() || 'Car', car: app.querySelector('#ccar').value.trim() || 'Car' };
+          return { name: app.querySelector('#cname').value.trim() || 'Player', car: '' };
         }
         function msg(t) { app.querySelector('#cmsg').textContent = t; }
         app.querySelector('#create').addEventListener('click', function () {
-          msg('Creating convoy…');
+          msg('Making a room…');
           GN.convoy.create(names(), function (err) { if (err) msg('Could not create: ' + (err.type || err.message || err)); });
         });
         app.querySelector('#join').addEventListener('click', function () {
@@ -362,21 +358,31 @@
     var shareUrl = location.origin + location.pathname + '?room=' + Net.room;
     var players = Net.roster.map(function (r) {
       return '<div class="car-row' + (r.id === Net.myId ? ' me' : '') + '">' +
-        '<span class="car-emoji">🚗</span>' +
-        '<span class="car-who"><strong>' + GN.esc(r.name) + '</strong><small>' + GN.esc(r.car || 'Car') + (r.host ? ' · host' : '') + '</small></span>' +
+        '<span class="car-emoji">🙂</span>' +
+        '<span class="car-who"><strong>' + GN.esc(r.name) + '</strong>' + (r.host ? '<small>host</small>' : '') + '</span>' +
         '<span class="car-voice">' + (r.voice ? '🎙' : '') + '</span>' +
         '</div>';
     }).join('');
-    var hostControls = Net.isHost
-      ? '<h3>Start a game</h3><div class="grid">' + GN.convoyGames.map(function (g) {
-          var ok = Net.roster.length >= g.min;
-          return '<button class="card' + (ok ? '' : ' disabled') + '" data-start="' + g.id + '"' + (ok ? '' : ' disabled') + '>' +
-            '<span class="card-emoji">' + g.emoji + '</span><span class="card-name">' + GN.esc(g.name) + '</span>' +
-            '<span class="card-blurb">' + GN.esc(g.blurb) + '</span><span class="card-meta">needs ' + g.min + '+ cars</span></button>';
-        }).join('') + '</div>'
-      : '<p class="muted center">Waiting for the host to start a game…</p>';
+    var meta = Net.pendingGame ? GN.gameMeta(Net.pendingGame) : null;
+    var hostControls;
+    if (Net.isHost && meta) {
+      var enough = Net.roster.length >= meta.min;
+      hostControls = '<h3>' + meta.emoji + ' ' + GN.esc(meta.name) + '</h3>' +
+        '<p class="muted small">' + GN.esc(meta.blurb) + '</p>' +
+        '<button class="btn primary big" id="startgame"' + (enough ? '' : ' disabled') + '>' +
+          (enough ? 'Start ' + GN.esc(meta.name) : 'Need ' + meta.min + ' players (' + Net.roster.length + ')') + '</button>';
+    } else if (Net.isHost) {
+      hostControls = '<h3>Start a game</h3><div class="grid">' + GN.convoyGames.map(function (g) {
+        var ok = Net.roster.length >= g.min;
+        return '<button class="card' + (ok ? '' : ' disabled') + '" data-start="' + g.id + '"' + (ok ? '' : ' disabled') + '>' +
+          '<span class="card-emoji">' + g.emoji + '</span><span class="card-name">' + GN.esc(g.name) + '</span>' +
+          '<span class="card-blurb">' + GN.esc(g.blurb) + '</span><span class="card-meta">needs ' + g.min + '+</span></button>';
+      }).join('') + '</div>';
+    } else {
+      hostControls = '<p class="muted center">Waiting for the host to start…</p>';
+    }
 
-    GN.mount(GN.topbar('The Convoy · Lobby') +
+    GN.mount(GN.topbar('Room') +
       '<div class="pad">' +
         '<div class="room-box">' +
           '<div class="room-label">Room code</div>' +
@@ -387,10 +393,10 @@
           '</div>' +
           '<div id="qrwrap" hidden><div class="qrbox" id="qrbox"></div><p class="qr-url">' + GN.esc(shareUrl) + '</p></div>' +
         '</div>' +
-        '<h3>Cars in the convoy (' + Net.roster.length + ')</h3>' +
+        '<h3>Players (' + Net.roster.length + ')</h3>' +
         '<div class="car-list">' + players + '</div>' +
         hostControls +
-        '<button class="btn ghost" id="leave">Leave convoy</button>' +
+        '<button class="btn ghost" id="leave">Leave room</button>' +
       '</div>' + dockHTML(), function (app) {
       app.querySelector('#share').addEventListener('click', function () {
         var done = function () { GN.flash(app, 'Invite link copied'); };
@@ -406,6 +412,8 @@
       app.querySelectorAll('[data-start]').forEach(function (b) {
         b.addEventListener('click', function () { startGame(b.getAttribute('data-start')); });
       });
+      var sg = app.querySelector('#startgame');
+      if (sg) sg.addEventListener('click', function () { startGame(Net.pendingGame); });
       bindDock(app);
     });
   }

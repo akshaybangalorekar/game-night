@@ -1,57 +1,44 @@
 # 🎉 Game Night
 
-Party games for a group — two ways to play:
+A simple place for kids to add their friends and play games together — each on their own phone,
+with **voice** and **chat** built in.
 
-- **🕯️ The Long Table** — everyone in one room, one phone passed around. Runs fully offline.
-- **🚗 The Convoy** — different cars, one game. Live across phones with **voice** and **chat**.
+## Games
+
+- **Uno** — match colour or number, skips, reverses, +2, wild, wild +4. First to empty their hand wins.
+- **Mafia** — hidden roles dealt privately to every phone; the app runs the nights and the votes.
+- **Ludo** — *coming soon*
+- **Chess** — *coming soon*
+- **Air Hockey** — *coming soon* (real-time; best when everyone is on the same Wi-Fi)
+
+## How it works
+
+1. **Open the app** — you get a name and a **friend code** (like `YJB YQW`).
+2. **Add friends** by typing their code. Your friends list is kept on your device.
+3. **Pick a game**, then **make a room** and share the **code, link or QR**. Friends tap in and you play.
+4. **Talk as you play** — hold the mic to talk, or use the chat with one-tap emoji.
 
 No accounts, no sign-ups, no installs. It's a static site that runs in the browser.
 
-## The Long Table (in one room)
-
-Pass the phone around, scan a QR code to get your secret role, and argue with your friends.
-
-**Social deduction**
-- **Mafia** — hidden roles, narrator-guided nights and daytime trials, with **QR-code role reveal**
-  so each player reads their role on their own phone.
-
-**Party & drawing** (Jackbox-style, pass-and-play)
-- **Punchline** — write the funniest answer to a prompt, then the room votes.
-- **Fib Factory** — invent a believable lie, then spot the real answer.
-- **Scribble** — secretly draw a prompt on the canvas, then the room guesses.
-
-**Table games** (Huddle-style)
-- **Spyfall** — everyone knows the location except the spy.
-- **Wavelength** — read your teammate's mind on a hidden spectrum.
-- **Time's Up** — two teams, three rounds: describe, one word, charades.
-
-## The Convoy (across cars)
-
-Built for road trips and kids: **tap-light, voice-first, minimal screen-staring** (good for travel
-sickness). One car starts a convoy, everyone else joins with a 4-character code or an invite link.
-
-- **Would You Rather** — one question, two choices. Tap, then argue about it out loud.
-- **Two Truths and a Lie** — say two true things and one fib out loud; everyone taps the lie.
-- **Convoy Bingo** — spot things out of the window and mark your card; first full line wins.
-
-Every convoy room has:
-- **Push-to-talk voice** — hold the mic button to talk to the other cars.
-- **Chat** — short text plus one-tap emoji reactions for anyone who can't use voice.
-
-Rooms are private: only people with the code can join.
-
-### How the convoy connects (no server of yours)
+## How it connects (no server of ours)
 
 Peer-to-peer WebRTC via [PeerJS](https://peerjs.com). PeerJS provides free signalling; after that,
-data and voice go **directly between cars**. The car that starts the convoy is the host and keeps
-the game state; the others send their taps and receive updates.
+game data and voice go **directly between phones**. The phone that makes the room is the host and
+keeps the game state; the others send their moves and receive updates.
 
-Because it's peer-to-peer, it needs a working connection between the phones (mobile data or Wi-Fi).
-Voice uses WebRTC audio, so a decent signal helps.
+Voice uses WebRTC audio, so a decent connection helps — and it's best when everyone is on the same
+Wi-Fi.
+
+## Saving rooms (optional)
+
+Rooms, scores and the "already used" list can be saved to a GitHub repo so a room can be resumed
+later. Reads are public; **writes need a fine-grained token** (Contents: read and write on that one
+repo). Enter it once in **⚙ Storage settings** on *your* device — it stays in that browser only and
+is never uploaded or shared. Leave it blank to run without saving.
 
 ## Run locally
 
-Plain HTML/CSS/JS — no build step. Either open `index.html` directly, or serve the folder:
+Plain HTML/CSS/JS — no build step:
 
 ```bash
 python3 -m http.server 8000
@@ -60,18 +47,13 @@ python3 -m http.server 8000
 
 ## Deploy
 
-Static site — GitHub Pages works out of the box:
-
-1. Push this repo to GitHub.
-2. **Settings → Pages → Deploy from a branch → `main` / root**.
-
-QR role-reveal and convoy invite links both work once the site is hosted (they need a real URL).
+Static site — GitHub Pages works out of the box: **Settings → Pages → Deploy from a branch →
+`main` / root**.
 
 ## Notes
 
-- **The Long Table** is fully offline; no network calls at runtime.
-- **The Convoy** uses PeerJS's free public signalling server plus WebRTC. No data is stored on any
-  server — chat and game state live only in the room, and the QR role lives only in its link.
+- Friend codes and the friends list live only on your device (localStorage).
+- No data is stored on any server; chat and game state live only in the room.
 - Bundled libraries: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) and
   [PeerJS](https://github.com/peers/peerjs) — both MIT.
 
