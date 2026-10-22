@@ -4,9 +4,22 @@
 (function () {
   var GN = window.GN;
 
+  /* PeerJS gives free signalling. STUN + a public TURN relay let two phones on different
+     networks (mobile data, strict Wi-Fi) still reach each other when a direct link fails. */
   function peerOpts() {
     if (window.GN_PEER) return window.GN_PEER;   // override for local testing
-    return { debug: 1 };                          // PeerJS free cloud signalling
+    return {
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+        ]
+      }
+    };
   }
 
   var CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -167,7 +180,7 @@
       });
       conn.on('data', fromHost);
       conn.on('error', function (e) { if (!settled) { settled = true; cb(e); } });
-      setTimeout(function () { if (!settled) { settled = true; cb(new Error('no-answer')); } }, 14000);
+      setTimeout(function () { if (!settled) { settled = true; cb(new Error('no-answer')); } }, 20000);
     });
     p.on('error', function (e) { if (!settled) { settled = true; cb(e); } });
     p.on('call', handleIncomingCall);
@@ -381,11 +394,7 @@
         });
         function joinNow(room) {
           if (room.length < 4) { msg('Enter the 4-character room code.'); return; }
-          msg('Joining ' + room + '…');
-          GN.convoy.join(room, names(), function (err) {
-            if (!err) return;
-            msg(err.message === 'no-answer' ? 'No room answered that code. Check it with your friend.' : 'Could not join: ' + (err.type || err.message || err));
-          });
+          joinTo(room, names().name);
         }
         app.querySelector('#join').addEventListener('click', function () {
           joinNow(app.querySelector('#croom').value.trim().toUpperCase());
@@ -394,11 +403,54 @@
         // arriving from a QR code or invite link: if we already know the name, just go in
         if (preRoom && GN.me && GN.me.name && !autoTried) {
           autoTried = true;
-          joinNow(preRoom);
+          joinTo(preRoom, GN.me.name);
         }
       });
     }
   };
+
+  function joinTo(room, name) {
+    room = String(room).toUpperCase();
+    name = name || 'Player';
+    showJoining(room);
+    GN.convoy.join(room, { name: name, car: '' }, function (err) {
+      if (!err) return;
+      showJoinError(room, name, err);
+    });
+  }
+
+  function showJoining(room) {
+    GN.replace(function () {
+      GN.mount(GN.topbar('Joining') +
+        '<div class="pad center">' +
+          '<div class="spinner"></div>' +
+          '<h2 class="phase-title">Joining room ' + GN.esc(room) + '</h2>' +
+          '<p class="muted">Connecting to your friend\u2019s phone…</p>' +
+          '<p class="muted small">Keep this screen open for a moment.</p>' +
+        '</div>');
+    });
+  }
+
+  function showJoinError(room, name, err) {
+    var t = err && (err.type || err.message);
+    var why;
+    if (err && err.message === 'no-answer') why = 'That room did not answer. Make sure the friend who made it still has the app open, then try again.';
+    else if (t === 'peer-unavailable') why = 'No room with that code is open. Check the code, or ask your friend to show the QR again.';
+    else if (t === 'network' || t === 'server-error' || t === 'socket-error') why = 'Could not reach the game server. Check your internet and try again.';
+    else why = 'Could not join (' + (t || 'unknown') + '). Try again.';
+    GN.replace(function () {
+      GN.mount(GN.topbar('Could not join') +
+        '<div class="pad center">' +
+          '<div class="win-banner">😕 Room ' + GN.esc(room) + ' did not answer</div>' +
+          '<p class="muted">' + GN.esc(why) + '</p>' +
+          '<button class="btn primary big" id="retry">Try again</button>' +
+          '<button class="btn" id="backbtn">Back</button>' +
+        '</div>', function (app) {
+        app.querySelector('#retry').addEventListener('click', function () { joinTo(room, name); });
+        app.querySelector('#backbtn').addEventListener('click', function () { GN.goHome(); });
+      });
+    });
+  }
 
   function inviteFriend(app, code) {
     var f = GN.friendByCode ? GN.friendByCode(code) : null;
@@ -441,7 +493,8 @@
           '<span class="card-blurb">' + GN.esc(g.blurb) + '</span><span class="card-meta">needs ' + g.min + '+</span></button>';
       }).join('') + '</div>';
     } else {
-      hostControls = '<p class="muted center">Waiting for the host to start…</p>';
+      hostControls = '<div class="joined-banner">✅ You are in the room</div>' +
+        '<p class="muted center">Waiting for the host to start…</p>';
     }
 
     var myFriends = GN.friends || [];
