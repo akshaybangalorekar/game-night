@@ -38,6 +38,13 @@
   function sendTo(pid, d) { var c = Net.conns[pid]; if (c && c.open) c.send(d); }
   function broadcast(d) { Object.keys(Net.conns).forEach(function (id) { var c = Net.conns[id]; if (c && c.open) c.send(d); }); }
   function broadcastRoster() { broadcast({ t: 'roster', roster: Net.roster }); }
+
+  /* high-frequency channel for real-time games (positions) — no re-render */
+  GN.convoy.fastSend = function (d, toPid) {
+    var msg = { t: 'fast', from: Net.myId, d: d };
+    if (Net.isHost) { if (toPid) sendTo(toPid, msg); else broadcast(msg); }
+    else sendToHost(msg);
+  };
   function broadcastState() { broadcast({ t: 'state', state: Net.state }); }
 
   function setView(fn) { Net.viewFn = fn; GN.replace(fn); }
@@ -188,6 +195,7 @@
     } else if (d.t === 'action') { applyAction(d.a, pid); }
     else if (d.t === 'chat') { addChat(d.msg, true); }
     else if (d.t === 'voice') { setVoice(pid, true); }
+    else if (d.t === 'fast') { if (Net.onFast) Net.onFast(d.from || pid, d.d); }
   }
 
   function fromHost(d) {
@@ -199,6 +207,7 @@
       else render();
     } else if (d.t === 'chat') { addChat(d.msg, false); }
     else if (d.t === 'chat-log') { Net.chat = d.chat || []; renderChat(); }
+    else if (d.t === 'fast') { if (Net.onFast) Net.onFast(d.from, d.d); }
   }
 
   /* ---------------- actions ---------------- */

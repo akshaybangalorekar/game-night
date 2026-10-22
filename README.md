@@ -9,7 +9,7 @@ with **voice** and **chat** built in.
 - **Ludo** — roll a 6 to leave the yard, race four tokens home, send friends back.
 - **Chess** — full rules: castling, en passant, promotion, check and checkmate.
 - **Mafia** — hidden roles dealt privately to every phone; the app runs the nights and the votes.
-- **Air Hockey** — *coming soon* (real-time; best when everyone is on the same Wi-Fi)
+- **Air Hockey** — real-time paddles, first to 7 goals. Best when everyone is on the same Wi-Fi.
 
 ## How it works
 

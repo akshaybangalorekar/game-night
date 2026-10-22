@@ -301,3 +301,9 @@ textarea.input{resize:vertical;line-height:1.45}
 .csq.sel{box-shadow:inset 0 0 0 3px var(--accent)}
 .cp.w{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .cp.b{color:#111;text-shadow:0 1px 2px rgba(255,255,255,.3)}
+
+/* ---------------- air hockey ---------------- */
+.ah-scores{display:flex;justify-content:space-between;align-items:center;margin:10px 0;font-size:15px}
+.ah-scores strong{font-size:20px}
+.ah-wrap{display:flex;justify-content:center;margin:10px 0}
+.ah-wrap canvas{width:min(78vw,320px);height:auto;border-radius:16px;border:1px solid var(--line);touch-action:none;background:#0d1730}

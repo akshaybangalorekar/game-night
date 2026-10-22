@@ -256,7 +256,7 @@ window.GN = (function () {
     { id: 'uno', name: 'Uno', emoji: '🃏', min: 2, max: 6, blurb: 'Match colour or number. First to empty their hand wins.' },
     { id: 'ludo', name: 'Ludo', emoji: '🎲', min: 2, max: 4, blurb: 'Roll the dice, race your tokens home.' },
     { id: 'chess', name: 'Chess', emoji: '♟️', min: 2, max: 2, blurb: 'The classic duel — castling, en passant and all.' },
-    { id: 'airhockey', name: 'Air Hockey', emoji: '🏒', min: 2, max: 2, blurb: 'Fast paddles — best when you are on the same Wi-Fi.', soon: true },
+    { id: 'airhockey', name: 'Air Hockey', emoji: '🏒', min: 2, max: 2, blurb: 'Fast paddles — best when you are both on the same Wi-Fi.' },
     { id: 'mafia-room', name: 'Mafia', emoji: '🔫', min: 4, max: 16, blurb: 'Hidden roles dealt to every phone. No narrator needed.' }
   ];
   GN.gameMeta = function (id) { for (var i = 0; i < GN.catalog.length; i++) if (GN.catalog[i].id === id) return GN.catalog[i]; return null; };
