@@ -46,20 +46,23 @@
         .catch(function () { set(0, 'bad', 'no internet'); })
         .then(testSignal);
 
-      /* 2. signalling server */
+      /* 2. connection service (public MQTT broker) */
       function testSignal() {
-        var p, fin = false;
+        var client, fin = false;
         var finish = function (ok, detail) {
           if (fin) return; fin = true;
-          try { if (p) p.destroy(); } catch (e) {}
+          try { if (client) client.end(true); } catch (e) {}
           set(1, ok ? 'ok' : 'bad', detail);
           testTurn();
         };
         var timer = setTimeout(function () { finish(false, 'no answer in 12s'); }, 12000);
         try {
-          p = new Peer(GN.convoy.peerOpts());
-          p.on('open', function () { clearTimeout(timer); finish(true, 'connected'); });
-          p.on('error', function (e) { clearTimeout(timer); finish(false, (e && (e.type || e.message)) || 'error'); });
+          client = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+            clientId: 'gndiag_' + Math.random().toString(16).slice(2, 8),
+            connectTimeout: 8000, reconnectPeriod: 0
+          });
+          client.on('connect', function () { clearTimeout(timer); finish(true, 'connected'); });
+          client.on('error', function (e) { clearTimeout(timer); finish(false, (e && e.message) || 'error'); });
         } catch (e) { clearTimeout(timer); finish(false, 'could not start'); }
       }
 
@@ -74,7 +77,7 @@
           done = true; render();
         };
         try {
-          var cfg = GN.convoy.peerOpts().config;
+          var cfg = GN.convoy.iceConfig();
           pc = new RTCPeerConnection(cfg);
           pc.createDataChannel('x');
           pc.onicecandidate = function (e) {

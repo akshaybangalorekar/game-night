@@ -6,22 +6,49 @@
 
   /* PeerJS gives free signalling. STUN + a public TURN relay let two phones on different
      networks (mobile data, strict Wi-Fi) still reach each other when a direct link fails. */
-  function peerOpts() {
-    if (window.GN_PEER) return window.GN_PEER;   // override for local testing
-    return {
-      debug: 1,
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun.cloudflare.com:3478' },
-          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:3478', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-        ]
-      }
-    };
+  /* Signalling and data run over a public MQTT broker (WebSocket) instead of PeerJS's
+     cloud server, which is currently unreliable. Everything goes through the broker's
+     socket, so two phones on any networks can talk without NAT/TURN problems. */
+  var BROKERS = [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081/'
+  ];
+  var BROKER = BROKERS[0];
+  var TOPIC = null;
+  var handlers = {};
+
+  function iceConfig() {
+    if (window.GN_ICE) return { iceServers: window.GN_ICE };
+    return { iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun.cloudflare.com:3478' },
+      { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+    ] };
+  }
+
+  function connectBroker(cb) {
+    if (window.GN_BROKER) BROKER = window.GN_BROKER;
+    var done = false, client;
+    function finish(err, c) { if (done) return; done = true; cb(err, c); }
+    try {
+      client = mqtt.connect(BROKER, {
+        clientId: 'gn_' + Math.random().toString(16).slice(2, 10),
+        clean: true, connectTimeout: 8000, reconnectPeriod: 0, keepalive: 30
+      });
+    } catch (e) { return finish(e); }
+    var t = setTimeout(function () { try { client.end(true); } catch (e) {} finish(new Error('no-signal')); }, 12000);
+    client.on('connect', function () { clearTimeout(t); finish(null, client); });
+    client.on('error', function (e) { clearTimeout(t); finish(e || new Error('network')); });
+  }
+  function pub(topic, obj) { if (!Net.mqtt) return; try { Net.mqtt.publish(topic, JSON.stringify(obj)); } catch (e) {} }
+  function pubRetained(topic, obj) { if (!Net.mqtt) return; try { Net.mqtt.publish(topic, obj ? JSON.stringify(obj) : '', { retain: true }); } catch (e) {} }
+  function sub(topic, fn) { handlers[topic] = fn; if (Net.mqtt) Net.mqtt.subscribe(topic, function () {}); }
+  function onMessage(topic, buf) {
+    var fn = handlers[topic]; if (!fn) return;
+    var m; try { m = JSON.parse(buf.toString()); } catch (e) { return; }
+    fn(m);
   }
 
   /* Keep the screen awake while a room is open. On phones, a sleeping screen suspends the
@@ -36,7 +63,7 @@
   }
   function releaseAwake() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {} }
   document.addEventListener('visibilitychange', function () {
-    if (!document.hidden && Net.peer) keepAwake();
+    if (!document.hidden && Net.mqtt) keepAwake();
   });
 
   var CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -44,15 +71,15 @@
   function drawQR(box, text) { box.innerHTML = ''; try { var qr = qrcode(0, 'M'); qr.addData(text); qr.make(); box.innerHTML = qr.createImgTag(6, 8); } catch (e) { box.textContent = 'QR unavailable'; } }
 
   var Net = {
-    peer: null, isHost: false, room: '', myId: null, me: { name: '', car: '' },
-    hostConn: null, conns: {}, roster: [], state: null, chat: [],
-    calls: {}, audios: {}, localStream: null,
+    mqtt: null, isHost: false, room: '', myId: null, me: { name: '', car: '' },
+    roster: [], state: null, chat: [],
+    rtc: {}, audios: {}, localStream: null,
     screen: 'hub', viewFn: null, chatOpen: false,
     used: {}, roomObj: null, saveTimer: null, saveDebounce: null, pendingGame: null,
     micUntil: 0, micTimer: null, micTicker: null
   };
   GN.convoy = { Net: Net };
-  GN.convoy.peerOpts = peerOpts;
+  GN.convoy.iceConfig = iceConfig;
 
   /* ---------------- convoy game registry ---------------- */
   GN.convoyGames = [];
@@ -65,9 +92,9 @@
   function gameById(id) { for (var i = 0; i < GN.convoyGames.length; i++) if (GN.convoyGames[i].id === id) return GN.convoyGames[i]; return null; }
 
   /* ---------------- transport ---------------- */
-  function sendToHost(d) { if (Net.hostConn && Net.hostConn.open) Net.hostConn.send(d); }
-  function sendTo(pid, d) { var c = Net.conns[pid]; if (c && c.open) c.send(d); }
-  function broadcast(d) { Object.keys(Net.conns).forEach(function (id) { var c = Net.conns[id]; if (c && c.open) c.send(d); }); }
+  function sendToHost(d) { pub(TOPIC + '/h', { from: Net.myId, d: d }); }
+  function sendTo(pid, d) { pub(TOPIC + '/g/' + pid, { from: Net.myId, d: d }); }
+  function broadcast(d) { pub(TOPIC + '/all', { from: Net.myId, d: d }); }
   function broadcastRoster() { broadcast({ t: 'roster', roster: Net.roster }); }
 
   /* high-frequency channel for real-time games (positions) — no re-render */
@@ -147,16 +174,18 @@
   /* ---------------- create / join ---------------- */
   GN.convoy.create = function (me, cb, resumeCode) {
     var room = resumeCode || randCode();
-    var p = new Peer('gnc-' + room, peerOpts());
-    var settled = false;
-    p.on('open', function (id) {
-      settled = true;
-      Net.peer = p; Net.isHost = true; Net.room = room; Net.myId = id; Net.me = me;
-      Net.roster = [{ id: id, name: me.name, car: me.car, voice: false, host: true }];
+    var myId = 'h-' + Math.random().toString(36).slice(2, 8);
+    connectBroker(function (err, client) {
+      if (err) return cb(err);
+      Net.mqtt = client; client.on('message', onMessage);
+      Net.isHost = true; Net.room = room; Net.myId = myId; Net.me = me;
+      TOPIC = 'gn/' + room;
+      Net.roster = [{ id: myId, name: me.name, car: me.car, voice: false, host: true }];
+      sub(TOPIC + '/h', function (m) { if (m && m.d) fromGuest(m.from, m.d); });
+      pubRetained(TOPIC + '/info', { host: myId, name: me.name });
       Net.screen = 'lobby';
       setView(lobbyView);
-      keepAwake();
-      loadUsed(); saveRoomSoon(); startAutoSave();
+      keepAwake(); loadUsed(); saveRoomSoon(); startAutoSave();
       if (resumeCode && storeReady()) {
         GN.store.loadRoom(resumeCode).then(function (rm) {
           if (rm && rm.state) { Net.state = rm.state; Net.screen = 'game'; setView(gameView); }
@@ -164,62 +193,47 @@
       }
       cb(null);
     });
-    p.on('error', function (e) {
-      if (e && e.type === 'unavailable-id') { Net.room = ''; p.destroy(); return GN.convoy.create(me, cb); }
-      if (!settled) cb(e); else GN.flash(document.getElementById('app'), 'Connection issue: ' + (e.type || e.message));
-    });
-    p.on('connection', function (conn) {
-      conn.on('open', function () {
-        Net.conns[conn.peer] = conn;
-        conn.on('data', function (d) { fromGuest(conn.peer, d); });
-        conn.on('close', function () {
-          delete Net.conns[conn.peer];
-          Net.roster = Net.roster.filter(function (r) { return r.id !== conn.peer; });
-          broadcastRoster(); render();
-        });
-      });
-    });
-    p.on('disconnected', function () { try { p.reconnect(); } catch (e) {} });
-    p.on('call', handleIncomingCall);
   };
 
   GN.convoy.join = function (room, me, cb) {
-    var p = new Peer(peerOpts());
-    var settled = false;
-    // if the signalling socket never opens, don't hang forever
-    var openTimer = setTimeout(function () { if (!settled) { settled = true; cb(new Error('no-signal')); } }, 15000);
-    p.on('open', function (id) {
-      clearTimeout(openTimer);
-      Net.peer = p; Net.isHost = false; Net.room = room; Net.myId = id; Net.me = me;
-      var conn = p.connect('gnc-' + room, { reliable: true });
-      conn.on('open', function () {
-        settled = true;
-        Net.hostConn = conn;
-        conn.send({ t: 'hello', me: me });
+    var myId = 'g-' + Math.random().toString(36).slice(2, 8);
+    connectBroker(function (err, client) {
+      if (err) return cb(err);
+      Net.mqtt = client; client.on('message', onMessage);
+      Net.isHost = false; Net.room = room; Net.myId = myId; Net.me = me;
+      TOPIC = 'gn/' + room;
+      var settled = false;
+      var timer = setTimeout(function () {
+        if (settled) return; settled = true;
+        cb(new Error('peer-unavailable'));
+      }, 9000);
+      sub(TOPIC + '/info', function (m) {
+        if (settled || !m || !m.host) return;
+        settled = true; clearTimeout(timer);
+        sub(TOPIC + '/all', function (x) { if (x && x.d && x.from !== Net.myId) fromHost(x.d); });
+        sub(TOPIC + '/g/' + myId, function (x) { if (x && x.d) fromHost(x.d); });
+        sub(TOPIC + '/s/' + myId, function (x) { if (x) onSignal(x); });
+        sendToHost({ t: 'hello', me: me });
         Net.screen = 'lobby';
         setView(lobbyView);
-        keepAwake();
-        loadUsed();
+        keepAwake(); loadUsed();
         cb(null);
       });
-      conn.on('data', fromHost);
-      conn.on('error', function (e) { if (!settled) { settled = true; cb(e); } });
-      setTimeout(function () { if (!settled) { settled = true; cb(new Error('no-answer')); } }, 20000);
     });
-    p.on('error', function (e) { if (!settled) { settled = true; cb(e); } });
-    p.on('disconnected', function () { try { p.reconnect(); } catch (e) {} });
-    p.on('call', handleIncomingCall);
   };
 
   GN.convoy.leave = function () {
     stopAutoSave();
     releaseAwake();
-    try { if (Net.peer) Net.peer.destroy(); } catch (e) {}
+    try { if (Net.isHost && Net.mqtt) pubRetained(TOPIC + '/info', null); } catch (e) {}
+    try { if (Net.mqtt) Net.mqtt.end(true); } catch (e) {}
     Object.keys(Net.audios).forEach(function (k) { try { Net.audios[k].remove(); } catch (e) {} });
-    Net.peer = null; Net.isHost = false; Net.room = ''; Net.myId = null;
-    Net.hostConn = null; Net.conns = {}; Net.roster = []; Net.state = null; Net.chat = [];
-    Net.calls = {}; Net.audios = {}; if (Net.localStream) { try { Net.localStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} }
-    Net.localStream = null; Net.screen = 'hub'; Net.viewFn = null;
+    Object.keys(Net.rtc || {}).forEach(function (k) { try { Net.rtc[k].close(); } catch (e) {} });
+    Net.mqtt = null; Net.isHost = false; Net.room = ''; Net.myId = null;
+    Net.roster = []; Net.state = null; Net.chat = [];
+    Net.rtc = {}; Net.audios = {};
+    if (Net.localStream) { try { Net.localStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} }
+    Net.localStream = null; Net.screen = 'hub'; Net.viewFn = null; handlers = {}; TOPIC = null;
     GN.goHome();
   };
 
@@ -360,31 +374,52 @@
     updateMicBtn();
     if (auto) GN.flash(document.getElementById('app'), 'Mic turned off after 5 minutes');
   };
+  function signalTo(pid, m) { m.from = Net.myId; pub(TOPIC + '/s/' + pid, m); }
+  function rtcFor(pid, initiator) {
+    if (Net.rtc[pid]) return Net.rtc[pid];
+    var pc = new RTCPeerConnection(iceConfig());
+    Net.rtc[pid] = pc;
+    if (Net.localStream) Net.localStream.getTracks().forEach(function (t) { try { pc.addTrack(t, Net.localStream); } catch (e) {} });
+    pc.onicecandidate = function (e) { if (e.candidate) signalTo(pid, { type: 'cand', candidate: e.candidate }); };
+    pc.ontrack = function (e) { playRemote(pid, e.streams[0]); };
+    if (initiator) {
+      pc.createOffer().then(function (o) { return pc.setLocalDescription(o); })
+        .then(function () { signalTo(pid, { type: 'offer', sdp: pc.localDescription }); })
+        .catch(function () {});
+    }
+    return pc;
+  }
+  function onSignal(m) {
+    if (!m || !m.from || m.from === Net.myId) return;
+    var pid = m.from;
+    if (m.type === 'offer') {
+      var pc = rtcFor(pid, false);
+      pc.setRemoteDescription(m.sdp).then(function () {
+        if (!Net.localStream) return;
+        return pc.createAnswer().then(function (a) { return pc.setLocalDescription(a); })
+          .then(function () { signalTo(pid, { type: 'answer', sdp: pc.localDescription }); });
+      }).catch(function () {});
+    } else if (m.type === 'answer') {
+      if (Net.rtc[pid]) Net.rtc[pid].setRemoteDescription(m.sdp).catch(function () {});
+    } else if (m.type === 'cand') {
+      if (Net.rtc[pid]) Net.rtc[pid].addIceCandidate(m.candidate).catch(function () {});
+    }
+  }
+  function playRemote(pid, stream) {
+    if (!Net.audios[pid]) {
+      var a = document.createElement('audio');
+      a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none';
+      Net.audios[pid] = a; document.body.appendChild(a);
+    }
+    Net.audios[pid].srcObject = stream;
+    var pr = Net.audios[pid].play(); if (pr && pr.catch) pr.catch(function () {});
+  }
   function syncVoice() {
-    if (!Net.localStream || !Net.peer) return;
+    if (!Net.localStream) return;
     Net.roster.forEach(function (r) {
-      if (r.id === Net.myId || !r.voice || Net.calls[r.id]) return;
-      if (Net.myId > r.id) wireCall(Net.peer.call(r.id, Net.localStream), r.id);
+      if (r.id === Net.myId || !r.voice || Net.rtc[r.id]) return;
+      if (Net.myId > r.id) rtcFor(r.id, true);
     });
-  }
-  function handleIncomingCall(call) {
-    if (!Net.localStream) { try { call.close(); } catch (e) {} return; }
-    call.answer(Net.localStream);
-    wireCall(call, call.peer);
-  }
-  function wireCall(call, pid) {
-    Net.calls[pid] = call;
-    call.on('stream', function (remote) {
-      if (!Net.audios[pid]) {
-        var a = document.createElement('audio');
-        a.autoplay = true; a.setAttribute('playsinline', ''); a.style.display = 'none';
-        Net.audios[pid] = a; document.body.appendChild(a);
-      }
-      Net.audios[pid].srcObject = remote;
-      var pr = Net.audios[pid].play(); if (pr && pr.catch) pr.catch(function () {});
-    });
-    call.on('close', function () { delete Net.calls[pid]; });
-    call.on('error', function () { delete Net.calls[pid]; });
   }
 
   /* ---------------- screens ---------------- */

@@ -29,14 +29,19 @@ with **voice** and **chat** built in.
 
 No accounts, no sign-ups, no installs. It's a static site that runs in the browser.
 
-## How it connects (no server of ours)
+## How it connects
 
-Peer-to-peer WebRTC via [PeerJS](https://peerjs.com). PeerJS provides free signalling; after that,
-game data and voice go **directly between phones**. The phone that makes the room is the host and
-keeps the game state; the others send their moves and receive updates.
+Signalling and game data go over a **public MQTT broker** (WebSocket), using
+[mqtt.js](https://github.com/mqttjs/MQTT.js). Every phone opens one WebSocket to the broker and
+talks through it, so two phones on **any** networks can play together — no NAT problems, no relay,
+no accounts.
 
-Voice uses WebRTC audio, so a decent connection helps — and it's best when everyone is on the same
-Wi-Fi.
+Earlier versions used PeerJS's public cloud for signalling; that server is currently unreliable
+(connections often take minutes or fail outright), so it was replaced.
+
+**Voice** still uses WebRTC, with the connection handshake carried over the same broker. Voice
+depends on the two phones being able to reach each other directly, so it works best on the same
+Wi-Fi — if it can't connect, the games and chat carry on regardless.
 
 ## Saving rooms (optional)
 
@@ -63,8 +68,8 @@ Static site — GitHub Pages works out of the box: **Settings → Pages → Depl
 
 - Friend codes and the friends list live only on your device (localStorage).
 - No data is stored on any server; chat and game state live only in the room.
-- Bundled libraries: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) and
-  [PeerJS](https://github.com/peers/peerjs) — both MIT.
+- Bundled libraries: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator),
+  [jsQR](https://github.com/cozmo/jsQR) and [mqtt.js](https://github.com/mqttjs/MQTT.js) — all MIT.
 
 ## License
 
