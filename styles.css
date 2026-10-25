@@ -331,3 +331,9 @@ textarea.input{resize:vertical;line-height:1.45}
 @keyframes spin{to{transform:rotate(360deg)}}
 .joined-banner{background:linear-gradient(90deg,rgba(55,214,122,.28),rgba(55,214,122,.10));
   border:1px solid rgba(55,214,122,.55);border-radius:14px;padding:12px 14px;text-align:center;font-weight:700;margin:12px 0}
+
+/* ---------------- connection test ---------------- */
+.diag{border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:14px 0}
+.diag-row{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-top:1px solid var(--line)}
+.diag-row:first-child{border-top:0}
+.diag-ico{font-size:18px;line-height:1.2}

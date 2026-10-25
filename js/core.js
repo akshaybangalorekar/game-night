@@ -308,7 +308,8 @@ window.GN = (function () {
         '<div class="row"><input id="fcode" class="input" placeholder="Friend code" style="text-transform:uppercase">' +
           '<input id="fname" class="input" placeholder="Their name"><button class="btn" id="addfriend">Add</button></div>' +
         '<p class="opt-hint">Your friends appear in every room, so you can invite them with one tap.</p>' +
-        '<button class="btn ghost" id="settings" style="margin-top:20px">⚙ Storage settings</button>' +
+        '<button class="btn ghost" id="diagbtn" style="margin-top:20px">🔧 Connection test</button>' +
+        '<button class="btn ghost" id="settings">⚙ Storage settings</button>' +
       '</div>';
     GN.mount(html, function (app) {
       app.querySelector('#myname').addEventListener('change', function (e) { GN.me.name = e.target.value.trim(); GN.saveMe(); });
@@ -326,6 +327,8 @@ window.GN = (function () {
       app.querySelectorAll('[data-game]').forEach(function (b) {
         b.addEventListener('click', function () { GN.convoy.hub(b.getAttribute('data-game')); });
       });
+      var dg = app.querySelector('#diagbtn');
+      if (dg) dg.addEventListener('click', function () { GN.diagnose(); });
       var st = app.querySelector('#settings');
       if (st) st.addEventListener('click', function () { GN.store.settings(); });
     });

@@ -52,6 +52,7 @@
     micUntil: 0, micTimer: null, micTicker: null
   };
   GN.convoy = { Net: Net };
+  GN.convoy.peerOpts = peerOpts;
 
   /* ---------------- convoy game registry ---------------- */
   GN.convoyGames = [];
