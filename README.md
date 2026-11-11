@@ -10,8 +10,7 @@ A DOS games player in the browser. Currently running the shareware
 |---|---|
 | `index.html` | the whole player: screen, on-screen controls, landscape handling |
 | `wolf3d.jsdos` | the game bundle (shareware `.WL1` files + `dosbox.conf`) |
-| `vendor/js-dos/` | js-dos player (`js-dos.js`, `js-dos.css`) |
-| `wdosbox.js`, `wdosbox.wasm` | the DOSBox core (js-dos looks for these at the site root) |
+| `vendor/js-dos8/` | js-dos **v8** player + DOSBox core (`emulators/`) |
 
 ## Controls
 
