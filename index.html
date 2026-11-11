@@ -61,6 +61,23 @@
   .card.off:hover { border-color:#333; background:#1c1c2a; }
   #gnote { min-height:18px; color:#c9a227; font-size:13px; max-width:520px; }
 
+  /* menu helper: one button per Wolf3D menu line */
+  #mh { position:absolute; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.72); padding:16px; }
+  #mh.show { display:flex; }
+  #mh .box { background:#14141d; border:1px solid #2c2c3c; border-radius:16px; padding:14px;
+    display:flex; flex-direction:column; gap:8px; width:100%; max-width:420px; }
+  #mh .box h3 { margin:0 0 4px; font-size:13px; color:#9a9a9a; font-weight:700; letter-spacing:1px; }
+  #mh button { padding:12px; border-radius:11px; background:#1e1e2c; color:#eee;
+    border:1px solid #333; font-size:15px; font-weight:700; cursor:pointer; }
+  #mh button:active { background:#c9a227; color:#111; }
+  #mh .close { background:#2a1a1a; border-color:#5a2a2a; color:#e8a0a0; }
+  #mhbtn { position:absolute; top:calc(10px + env(safe-area-inset-top)); right:calc(10px + env(safe-area-inset-right));
+    width:46px; height:46px; border-radius:12px; pointer-events:auto; touch-action:none;
+    background:rgba(20,20,28,.55); border:1px solid rgba(255,255,255,.25); color:#fff;
+    font-size:20px; display:flex; align-items:center; justify-content:center;
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+
   #guide .rows { display:flex; flex-direction:column; gap:10px; margin:6px 0 4px;
     width:100%; max-width:520px; }
   #guide .row { display:flex; align-items:center; gap:14px; text-align:left;
@@ -79,7 +96,16 @@
     <div id="hud" hidden>
       <div class="act" id="door">DOOR</div>
       <div class="act" id="fire">FIRE</div>
+      <div id="mhbtn" title="Game menu">☰</div>
     </div>
+  </div>
+</div>
+
+<div id="mh">
+  <div class="box">
+    <h3>WOLFENSTEIN MENU — tap a line</h3>
+    <div id="mh-list"></div>
+    <button class="close" id="mh-close">Close</button>
   </div>
 </div>
 
@@ -258,6 +284,45 @@
     el.addEventListener('mouseleave', up);
     el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   }
+  /* ---------- Wolf3D menu helper ----------
+     The Options menu is a DOS mouse menu and its highlight does not follow our
+     synthetic cursor, so every click confirmed whatever was already highlighted.
+     These buttons click at the exact screen position of each menu line. */
+  var MENU_ITEMS = ['New Game','Sound','Control','Load Game','Save Game',
+                    'Change View','Read This!','View Scores','Back to Demo','Quit'];
+  function canvasPoint(ix, iy) {
+    var el = pad(); if (!el) return null;
+    var r = el.getBoundingClientRect();
+    return { x: r.left + r.width * (ix / 320), y: r.top + r.height * (iy / 200) };
+  }
+  function tapMenuLine(idx) {
+    /* canvas coords of the Options menu lines: first at y~61.5, 11.3 apart */
+    var pt = canvasPoint(145, 61.5 + idx * 11.3);
+    if (!pt) return;
+    clickAt(pt.x, pt.y);
+  }
+  (function buildMenuHelper() {
+    var list = document.getElementById('mh-list');
+    MENU_ITEMS.forEach(function (name, i) {
+      var b = document.createElement('button');
+      b.textContent = name;
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        tapMenuLine(i);
+        setTimeout(function () { document.getElementById('mh').classList.remove('show'); }, 250);
+      });
+      list.appendChild(b);
+    });
+    document.getElementById('mhbtn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('mh').classList.add('show');
+    });
+    document.getElementById('mh-close').addEventListener('click', function (e) {
+      e.stopPropagation();
+      document.getElementById('mh').classList.remove('show');
+    });
+  })();
+
   bindAct(document.getElementById('door'), ' ');
   bindAct(document.getElementById('fire'), 'Control');
 
@@ -330,6 +395,7 @@
         pathPrefix: 'vendor/js-dos8/emulators/',
         autoStart: true
       });
+      try { if (dos.setMouseCapture) dos.setMouseCapture(true); } catch (e) {}
       /* hide the loading veil once the emulator has produced a canvas */
       var poll = setInterval(function () {
         if (document.querySelector('#dos canvas')) { boot.classList.add('hide'); clearInterval(poll); }
