@@ -148,6 +148,7 @@
   <div class="box">
     <h3>WOLFENSTEIN MENU — tap a line</h3>
     <div id="mh-list"></div>
+    <div id="mh-note" style="font-size:12px;color:#c9a227;min-height:15px"></div>
     <button class="close" id="mh-close">Close</button>
   </div>
 </div>
@@ -268,7 +269,7 @@
     if (onAct(e.target)) return;
     var t = e.touches ? e.touches[0] : e;
     if (!t) return;
-    origin = { x:t.clientX, y:t.clientY }; moved = false; lpFired = false;
+    origin = { x:t.clientX, y:t.clientY, t:Date.now() }; moved = false; lpFired = false;
     clearTimeout(lpTimer);
     lpTimer = setTimeout(function () {
       if (moved || !origin) return;
@@ -310,7 +311,8 @@
       tapKey(k);
     }
 
-    var wasTap = origin && !moved && !lpFired && dist < 12;
+    var held_ms = origin ? (Date.now() - origin.t) : 999;
+    var wasTap = origin && !moved && !lpFired && dist < 10 && held_ms < 300;
     setDir(null); releaseAll(); origin = null;
     if (wasTap) tapKey('Enter');
   }
@@ -344,11 +346,28 @@
     var r = el.getBoundingClientRect();
     return { x: r.left + r.width * (ix / 320), y: r.top + r.height * (iy / 200) };
   }
+  /* Drive the menu with keys instead of clicks: press Up many times to guarantee
+     the cursor is clamped at the top (the menu does not wrap), then step Down to
+     the wanted line and press Enter. Deterministic, no gestures involved. */
+  function stepKey(name, done) {
+    press(name);
+    setTimeout(function () { release(name); setTimeout(done, 120); }, MIN_HOLD);
+  }
   function tapMenuLine(idx) {
-    /* canvas coords of the Options menu lines: first at y~61.5, 11.3 apart */
-    var pt = canvasPoint(145, 61.5 + idx * 11.3);
-    if (!pt) return;
-    clickAt(pt.x, pt.y);
+    var ups = 12, i = 0;
+    var note = document.getElementById('mh-note');
+    if (note) note.textContent = 'Moving to ' + MENU_ITEMS[idx] + '…';
+    (function up() {
+      if (i++ < ups) return stepKey('ArrowUp', up);
+      var d = 0;
+      (function down() {
+        if (d++ < idx) return stepKey('ArrowDown', down);
+        stepKey('Enter', function () {
+          if (note) note.textContent = '';
+          setTimeout(function () { document.getElementById('mh').classList.remove('show'); }, 300);
+        });
+      })();
+    })();
   }
   (function buildMenuHelper() {
     var list = document.getElementById('mh-list');
