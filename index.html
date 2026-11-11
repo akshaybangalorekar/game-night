@@ -175,9 +175,25 @@
       catch (e) { var ev = document.createEvent('MouseEvents');
         ev.initMouseEvent(type, true, true, window, 1, x, y, x, y, false, false, false, false, 0, null); return ev; }
     }
-    el.dispatchEvent(mk('mousemove', 0));
-    el.dispatchEvent(mk('mousedown', 1));
-    setTimeout(function () { el.dispatchEvent(mk('mouseup', 0)); }, 60);
+    /* The menu highlight follows the DOS cursor, which the game tracks by
+       MOVEMENT, so a single jump does not register. Sweep there in small steps,
+       then click. */
+    var r = el.getBoundingClientRect();
+    var sx = r.left + r.width / 2, sy = r.top + r.height / 2;
+    var N = 12, i = 0;
+    (function step() {
+      var k = i / N;
+      var mx = sx + (x - sx) * k, my = sy + (y - sy) * k;
+      var o = { bubbles:true, cancelable:true, view:window, clientX:mx, clientY:my,
+                screenX:mx, screenY:my, button:0, buttons:0 };
+      try { el.dispatchEvent(new MouseEvent('mousemove', o)); }
+      catch (e) { var m = document.createEvent('MouseEvents');
+        m.initMouseEvent('mousemove', true, true, window, 0, mx, my, mx, my, false, false, false, false, 0, null);
+        el.dispatchEvent(m); }
+      if (++i <= N) { setTimeout(step, 25); return; }
+      el.dispatchEvent(mk('mousedown', 1));
+      setTimeout(function () { el.dispatchEvent(mk('mouseup', 0)); }, 80);
+    })();
   }
 
   /* ---------- gestures ---------- */
