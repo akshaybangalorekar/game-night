@@ -270,7 +270,9 @@
     if (!started) return;
     if (e.type === 'touchstart') touchSeen = Date.now();
     else if (Date.now() - touchSeen < 1000) return;
-    if (e.target.closest && e.target.closest('.panel')) return;
+    /* never treat a touch on our own UI (panels, menu helper, saves, buttons)
+       as a game gesture - that is what made the helper's Up/Down fire Enter */
+    if (e.target.closest && e.target.closest('.panel, #mh, #sv, .act, #mhbtn, #svbtn')) return;
     if (onAct(e.target)) return;
     var t = e.touches ? e.touches[0] : e;
     if (!t) return;
