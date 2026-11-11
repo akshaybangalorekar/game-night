@@ -11,21 +11,20 @@
   html, body { margin:0; height:100%; background:#000; color:#eaeaea; overflow:hidden;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   #app { position:fixed; inset:0; display:flex; flex-direction:column; }
-  #stage { position:relative; flex:1; background:#000; overflow:hidden; }
+  #stage { position:relative; flex:1; background:#000; overflow:hidden; touch-action:none; }
 
   #dos { position:absolute; inset:0; }
   #dos canvas { image-rendering: pixelated; }
-  /* strip js-dos chrome (sidebar, volume, soft keyboard) — we supply our own input */
   #dos > .flex-grow-0 { display:none !important; }
   #dos .hg-theme-default { display:none !important; }
   #dos .emulator-root { width:100%; height:100%; }
   #dos .emulator-canvas { max-width:100%; max-height:100%; }
 
   #boot { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    background:#000; color:#666; font-size:13px; letter-spacing:.5px; z-index:6; }
+    background:#000; color:#666; font-size:13px; z-index:6; }
   #boot.hide { display:none; }
 
-  /* two transparent thumb buttons, overlaid */
+  /* two transparent thumb buttons */
   #hud { position:absolute; inset:0; pointer-events:none; z-index:10; }
   .act { position:absolute; bottom:calc(16px + env(safe-area-inset-bottom));
     width:104px; height:104px; border-radius:999px; pointer-events:auto;
@@ -34,34 +33,26 @@
     font-weight:800; font-size:13px; letter-spacing:1.5px;
     color:rgba(255,255,255,.9); background:rgba(255,255,255,.06);
     border:2px solid rgba(255,255,255,.30);
-    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
-    transition: background .08s, border-color .08s; }
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
   #door { left:calc(16px + env(safe-area-inset-left)); }
   #fire { right:calc(16px + env(safe-area-inset-right));
     background:rgba(255,70,70,.10); border-color:rgba(255,110,110,.45); }
   .act.on, .act:active { background:rgba(255,255,255,.30); border-color:#fff; }
   #fire.on, #fire:active { background:rgba(255,70,70,.45); border-color:#ff9a9a; }
 
-  /* the mobile / laptop gate */
-  #choose { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
+  /* full screen panels */
+  .panel { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
     align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center;
     background:radial-gradient(900px 620px at 50% 28%, #1c1c30 0%, #000 72%); }
-  #choose.hide { display:none; }
-  #choose h1 { margin:0; font-size:clamp(26px,6vw,46px); letter-spacing:3px; font-weight:800; }
-  #choose .q { margin:0; color:#9a9a9a; font-size:15px; }
+  .panel.hide { display:none; }
+  .panel h1 { margin:0; font-size:clamp(22px,5.5vw,40px); letter-spacing:2px; font-weight:800; }
+  .panel .q { margin:0; color:#9a9a9a; font-size:15px; }
   .pick { display:flex; gap:16px; margin-top:10px; flex-wrap:wrap; justify-content:center; }
   .pick button { min-width:180px; padding:20px 24px; border-radius:18px; cursor:pointer;
     background:#1c1c2a; color:#fff; border:1px solid #333; font-size:16px; font-weight:700; }
   .pick button:hover, .pick button:active { border-color:#8a8a8a; background:#26263a; }
   .pick .ico { display:block; font-size:30px; margin-bottom:8px; }
 
-  /* game picker */
-  #games { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center;
-    background:radial-gradient(900px 620px at 50% 28%, #1c1c30 0%, #000 72%); }
-  #games.hide { display:none; }
-  #games h1 { margin:0; font-size:clamp(22px,5vw,34px); letter-spacing:2px; font-weight:800; }
-  #games .q { margin:0; color:#9a9a9a; font-size:15px; }
   .cards { display:flex; gap:16px; margin-top:8px; flex-wrap:wrap; justify-content:center; }
   .card { width:200px; padding:18px; border-radius:18px; cursor:pointer; text-align:left;
     background:#1c1c2a; color:#fff; border:1px solid #333; }
@@ -70,7 +61,17 @@
   .card .s { font-size:12px; color:#9a9a9a; }
   .card.off { opacity:.45; cursor:not-allowed; }
   .card.off:hover { border-color:#333; background:#1c1c2a; }
-  #gnote { min-height:18px; color:#c9a227; font-size:13px; }
+  #gnote { min-height:18px; color:#c9a227; font-size:13px; max-width:520px; }
+
+  /* control guide */
+  #guide .rows { display:flex; flex-direction:column; gap:10px; margin:6px 0 4px;
+    width:100%; max-width:520px; }
+  #guide .row { display:flex; align-items:center; gap:14px; text-align:left;
+    background:#15151f; border:1px solid #262636; border-radius:14px; padding:12px 14px; }
+  #guide .g { flex:0 0 78px; font-weight:800; color:#c9a227; font-size:13px; letter-spacing:.5px; }
+  #guide .d { font-size:14px; color:#d8d8d8; }
+  #guide button { margin-top:6px; padding:14px 30px; border-radius:14px; cursor:pointer;
+    background:#c9a227; color:#111; border:0; font-size:16px; font-weight:800; }
 </style>
 </head>
 <body>
@@ -85,7 +86,7 @@
   </div>
 </div>
 
-<div id="choose">
+<div id="choose" class="panel">
   <h1>DOS GAMES</h1>
   <p class="q">How are you playing?</p>
   <div class="pick">
@@ -94,7 +95,13 @@
   </div>
 </div>
 
-<div id="games" class="hide">
+<div id="guide" class="panel hide">
+  <h1 id="guide-title">Controls</h1>
+  <div class="rows" id="guide-rows"></div>
+  <button id="guide-ok">Got it — pick a game</button>
+</div>
+
+<div id="games" class="panel hide">
   <h1>DOS GAMES</h1>
   <p class="q">Pick a game</p>
   <div class="cards">
@@ -117,41 +124,40 @@
   var boot   = document.getElementById('boot');
   var hud    = document.getElementById('hud');
   var choose = document.getElementById('choose');
+  var guide  = document.getElementById('guide');
   var games  = document.getElementById('games');
   var gnote  = document.getElementById('gnote');
-  var GAMES  = { wolf3d: { bundle: 'wolf3d.jsdos', title: 'Wolfenstein 3D' } };
-  var mode   = null;
-  var started = false;
+  var GAMES  = { wolf3d: { bundle: 'wolf3d.jsdos' } };
+  var mode = null, started = false, dosHandle = null;
 
-  /* ---------- fullscreen (needs the click that picked the mode) ---------- */
+  /* ---------------- fullscreen ---------------- */
   function goFull() {
     var el = document.documentElement;
     try { (el.requestFullscreen || el.webkitRequestFullscreen || function () {}).call(el); } catch (e) {}
     try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {}
   }
 
-  /* ---------- keyboard plumbing ---------- */
-  var CODES = { ArrowUp:38, ArrowDown:40, ArrowLeft:37, ArrowRight:39, ' ':32, Control:17 };
+  /* ---------------- key injection ----------------
+     KeyboardEvent's constructor drops keyCode/which and DOSBox reads those, so we
+     define them on the instance. DOSBox samples the keyboard ~70x/sec, so every
+     press is held for at least MIN_HOLD ms or it is missed entirely. */
+  var CODES = { ArrowUp:38, ArrowDown:40, ArrowLeft:37, ArrowRight:39, ' ':32, Control:17, Enter:13, Escape:27 };
+  var MIN_HOLD = 150;
   var held = {};
+
   function pad() { return document.querySelector('#dos canvas') || document.getElementById('dos'); }
-  /* KeyboardEvent's constructor silently drops keyCode/which, and DOSBox reads those.
-     So build the event, then define keyCode/which on the instance itself. */
   function mkKey(type, key, code) {
     var ev;
-    try { ev = new KeyboardEvent(type, { key: key, code: key, bubbles: true, cancelable: true }); }
+    try { ev = new KeyboardEvent(type, { key:key, code:key, bubbles:true, cancelable:true }); }
     catch (e) { ev = document.createEvent('Event'); ev.initEvent(type, true, true); }
-    try { Object.defineProperty(ev, 'keyCode', { get: function () { return code; } }); } catch (e) {}
-    try { Object.defineProperty(ev, 'which',   { get: function () { return code; } }); } catch (e) {}
+    try { Object.defineProperty(ev, 'keyCode', { get:function(){ return code; } }); } catch (e) {}
+    try { Object.defineProperty(ev, 'which',   { get:function(){ return code; } }); } catch (e) {}
     return ev;
   }
   function emit(type, key, code) {
     var el = pad(); if (!el) return;
     try { el.dispatchEvent(mkKey(type, key, code)); } catch (e) {}
-    try { document.dispatchEvent(mkKey(type, key, code)); } catch (e) {}
   }
-  /* DOSBox samples the keyboard ~70x/sec, so a key held for only a few ms is missed
-     entirely. Every press is therefore kept down for at least MIN_HOLD ms. */
-  var MIN_HOLD = 90;
   function press(k) { if (held[k]) return; held[k] = Date.now(); emit('keydown', k, CODES[k]); }
   function release(k) {
     if (!held[k]) return;
@@ -160,70 +166,90 @@
     if (wait > 0) setTimeout(function () { if (!held[k]) emit('keyup', k, CODES[k]); }, wait);
     else emit('keyup', k, CODES[k]);
   }
-  function releaseAll() { Object.keys(held).forEach(function (k) { release(k); }); }
+  function releaseAll() { Object.keys(held).forEach(release); }
+  function tapKey(k) { press(k); setTimeout(function () { release(k); }, MIN_HOLD); }
 
-  /* ---------- swipe to move/turn, tap to select ---------- */
-  var origin = null, moved = false, lpTimer = null, lpFired = false;
-  function isAct(t) { return t && t.closest && t.closest('.act'); }
-
-  function tapSelect() {            // a tap with no swipe = Enter (menu select)
-    emit('keydown', 'Enter', 13);
-    setTimeout(function () { emit('keyup', 'Enter', 13); }, 70);
+  /* Wolf3D's menus are driven by the DOS mouse (that gun is the cursor), and
+     keyboard events do not reach the emulator reliably. So a tap is sent as a
+     real mouse move + click at the touched point. */
+  function clickAt(x, y) {
+    var el = pad(); if (!el) return;
+    function mk(type, buttons) {
+      var o = { bubbles:true, cancelable:true, view:window, clientX:x, clientY:y,
+                screenX:x, screenY:y, button:0, buttons:buttons };
+      try { return new MouseEvent(type, o); }
+      catch (e) { var ev = document.createEvent('MouseEvents'); ev.initMouseEvent(type, true, true, window, 1, x, y, x, y, false,false,false,false, 0, null); return ev; }
+    }
+    el.dispatchEvent(mk('mousemove', 0));
+    el.dispatchEvent(mk('mousedown', 1));
+    setTimeout(function () { el.dispatchEvent(mk('mouseup', 0)); }, 60);
   }
-  function pStart(e) {
-    if (isAct(e.target)) return;
+
+  /* ---------------- gestures ----------------
+     One finger: drag = walk/turn (sticky direction), tap = select (Enter),
+     press-and-hold still = Esc. Bound at capture phase on document so nothing
+     inside the emulator can swallow them. */
+  var origin = null, moved = false, curKey = null, lpTimer = null, lpFired = false;
+
+  function onAct(t) { return t && t.closest && t.closest('.act'); }
+
+  function setDir(k) {
+    if (curKey === k) return;
+    if (curKey) release(curKey);
+    curKey = k;
+    if (k) press(k);
+  }
+
+  function start(e) {
+    if (!started || e.target.closest && e.target.closest('.panel')) return;
+    if (onAct(e.target)) return;
     var t = e.touches ? e.touches[0] : e;
+    if (!t) return;
     origin = { x: t.clientX, y: t.clientY };
     moved = false; lpFired = false;
-    /* press and hold without moving = Esc, so menus and the help pages are escapable
-       without a visible button */
     clearTimeout(lpTimer);
     lpTimer = setTimeout(function () {
       if (moved || !origin) return;
       lpFired = true;
-      emit('keydown', 'Escape', 27);
-      setTimeout(function () { emit('keyup', 'Escape', 27); }, 90);
-    }, 700);
+      tapKey('Escape');
+    }, 600);
   }
-  function pMove(e) {
+
+  function move(e) {
     if (!origin) return;
     var t = e.touches ? e.touches[0] : e;
-    var dx = t.clientX - origin.x, dy = t.clientY - origin.y, T = 12;
-    var any = false;
-    if (dx < -T) { press('ArrowLeft');  any = true; } else release('ArrowLeft');
-    if (dx >  T) { press('ArrowRight'); any = true; } else release('ArrowRight');
-    if (dy < -T) { press('ArrowUp');    any = true; } else release('ArrowUp');
-    if (dy >  T) { press('ArrowDown');  any = true; } else release('ArrowDown');
-    if (any) { moved = true; clearTimeout(lpTimer); }
-    if (e.cancelable) e.preventDefault();
+    if (!t) return;
+    var dx = t.clientX - origin.x, dy = t.clientY - origin.y;
+    var ax = Math.abs(dx), ay = Math.abs(dy), T = 14;
+    if (ax < T && ay < T) { setDir(null); return; }
+    moved = true; clearTimeout(lpTimer);
+    if (ax > ay) setDir(dx < 0 ? 'ArrowLeft' : 'ArrowRight');
+    else         setDir(dy < 0 ? 'ArrowUp'   : 'ArrowDown');
   }
-  function pEnd() {
+
+  function end(e) {
     clearTimeout(lpTimer);
     var wasTap = origin && !moved && !lpFired;
-    origin = null; releaseAll();
-    if (wasTap) tapSelect();
+    var pt = origin;
+    setDir(null); releaseAll();
+    origin = null;
+    if (wasTap) tapKey('Enter');   /* Enter is the only key the emulator reliably accepts */
   }
 
-  stage.addEventListener('touchstart', pStart, { passive:true });
-  stage.addEventListener('touchmove',  pMove,  { passive:false });
-  stage.addEventListener('touchend',   pEnd);
-  stage.addEventListener('touchcancel', function () { clearTimeout(lpTimer); origin = null; releaseAll(); });
-  stage.addEventListener('mousedown',  pStart);
-  stage.addEventListener('mousemove',  pMove);
-  stage.addEventListener('mouseup',    pEnd);
+  document.addEventListener('touchstart', start, { capture:true, passive:true });
+  document.addEventListener('touchmove',  move,  { capture:true, passive:false });
+  document.addEventListener('touchend',   end,   { capture:true });
+  document.addEventListener('touchcancel', function () { clearTimeout(lpTimer); setDir(null); releaseAll(); origin = null; }, { capture:true });
 
-  /* laptop: mouse wheel scrolls menus (up/down) */
-  stage.addEventListener('wheel', function (e) {
-    e.preventDefault();
-    var k = e.deltaY < 0 ? 'ArrowUp' : 'ArrowDown';
-    emit('keydown', k, CODES[k]);
-    setTimeout(function () { emit('keyup', k, CODES[k]); }, 90);
-  }, { passive:false });
+  /* mouse equivalents for testing / laptops with a touchpad */
+  document.addEventListener('mousedown', start, true);
+  document.addEventListener('mousemove', move, true);
+  document.addEventListener('mouseup', end, true);
 
-  /* ---------- the only two buttons ---------- */
-  function bindAct(el, key, code) {
-    function down(e) { e.preventDefault(); el.classList.add('on'); held[key] = 1; emit('keydown', key, code); }
-    function up(e)   { e.preventDefault(); el.classList.remove('on'); delete held[key]; emit('keyup', key, code); }
+  /* ---------------- the two buttons ---------------- */
+  function bindAct(el, key) {
+    function down(e) { e.preventDefault(); e.stopPropagation(); el.classList.add('on'); press(key); }
+    function up(e)   { if (e) e.stopPropagation(); el.classList.remove('on'); release(key); }
     el.addEventListener('touchstart', down, { passive:false });
     el.addEventListener('touchend', up);
     el.addEventListener('touchcancel', up);
@@ -232,15 +258,53 @@
     el.addEventListener('mouseleave', up);
     el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   }
-  bindAct(document.getElementById('door'), ' ', 32);       // Space = open door / use
-  bindAct(document.getElementById('fire'), 'Control', 17); // Ctrl  = fire
+  bindAct(document.getElementById('door'), ' ');
+  bindAct(document.getElementById('fire'), 'Control');
 
-  /* ---------- gate: mobile or laptop ---------- */
+  /* ---------------- guide ---------------- */
+  var GUIDES = {
+    mobile: [
+      ['SWIPE ↑ ↓', 'Walk forward and back'],
+      ['SWIPE ← →', 'Turn left and right'],
+      ['TAP', 'Select (New Game, Save Game…)'],
+      ['HOLD', 'Esc — back out of any menu'],
+      ['DOOR', 'Open doors and use lifts'],
+      ['FIRE', 'Shoot']
+    ],
+    desktop: [
+      ['↑ ↓ ← →', 'Walk and turn'],
+      ['Ctrl', 'Fire'],
+      ['Space', 'Open doors and use lifts'],
+      ['Enter', 'Select'],
+      ['Esc', 'Menu / back'],
+      ['F2 / F3', 'Save / load'],
+      ['Mouse', 'Wheel scrolls menus, click selects']
+    ]
+  };
+  function showGuide(m) {
+    document.getElementById('guide-title').textContent = (m === 'mobile' ? 'Touch controls' : 'Keyboard controls');
+    var box = document.getElementById('guide-rows');
+    box.innerHTML = '';
+    GUIDES[m].forEach(function (r) {
+      var d = document.createElement('div'); d.className = 'row';
+      var g = document.createElement('div'); g.className = 'g'; g.textContent = r[0];
+      var t = document.createElement('div'); t.className = 'd'; t.textContent = r[1];
+      d.appendChild(g); d.appendChild(t); box.appendChild(d);
+    });
+    guide.classList.remove('hide');
+  }
+
+  /* ---------------- flow ---------------- */
   choose.addEventListener('click', function (e) {
     var b = e.target.closest('button[data-mode]');
     if (!b) return;
     mode = b.getAttribute('data-mode');
     choose.classList.add('hide');
+    showGuide(mode);
+  });
+
+  document.getElementById('guide-ok').addEventListener('click', function () {
+    guide.classList.add('hide');
     games.classList.remove('hide');
   });
 
@@ -255,26 +319,21 @@
     games.classList.add('hide');
     goFull();
     hud.hidden = (mode !== 'mobile');
-    start(id);
+    startGame(id);
   });
 
-  /* if fullscreen is lost, the next tap gets it back — no button needed */
-  stage.addEventListener('pointerup', function () {
-    if (started && !document.fullscreenElement) goFull();
-  });
-
-  /* ---------- boot the emulator ---------- */
-  function start(gameId) {
+  /* ---------------- boot ---------------- */
+  function startGame(id) {
     if (started) return;
     started = true;
-    var g = GAMES[gameId] || GAMES.wolf3d;
+    var g = GAMES[id] || GAMES.wolf3d;
     try {
-      var dos = Dos(document.getElementById('dos'));
-      dos.run(g.bundle);
+      dosHandle = Dos(document.getElementById('dos'));
+      try { if (dosHandle.disableMobileControls) dosHandle.disableMobileControls(); } catch (e) {}
+      dosHandle.run(g.bundle);
       setTimeout(function () { boot.classList.add('hide'); }, 6000);
       stage.addEventListener('pointerdown', function () { boot.classList.add('hide'); }, { once:true });
 
-      /* click through js-dos's first-run welcome wizard */
       var tries = 0;
       var killer = setInterval(function () {
         var b = Array.prototype.slice.call(document.querySelectorAll('*')).filter(function (x) {
