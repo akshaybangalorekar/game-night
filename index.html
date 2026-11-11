@@ -146,8 +146,12 @@
 
 <div id="mh">
   <div class="box">
-    <h3>WOLFENSTEIN MENU — tap a line</h3>
-    <div id="mh-list"></div>
+    <h3>MENU — step the cursor, then Select</h3>
+    <div class="row2" style="display:flex;gap:8px">
+      <button id="mh-up"   style="flex:1">▲ Up</button>
+      <button id="mh-down" style="flex:1">▼ Down</button>
+      <button id="mh-enter" style="flex:1;background:#c9a227;color:#111;border:0">Select</button>
+    </div>
     <div id="mh-note" style="font-size:12px;color:#c9a227;min-height:15px"></div>
     <div id="mh-eng" style="font-size:12px;color:#8a8a8a"></div>
     <button class="close" id="mh-close">Close</button>
@@ -358,34 +362,48 @@
     press(name);
     setTimeout(function () { release(name); setTimeout(done, 120); }, MIN_HOLD);
   }
+  function note(t) {
+    var n = document.getElementById('mh-note');
+    if (n) n.textContent = t || '';
+  }
   function tapMenuLine(idx) {
-    var ups = 12, i = 0;
-    var note = document.getElementById('mh-note');
-    if (note) note.textContent = 'Moving to ' + MENU_ITEMS[idx] + '…';
-    (function up() {
-      if (i++ < ups) return stepKey('ArrowUp', up);
-      var d = 0;
-      (function down() {
-        if (d++ < idx) return stepKey('ArrowDown', down);
-        stepKey('Enter', function () {
-          if (note) note.textContent = '';
-          setTimeout(function () { document.getElementById('mh').classList.remove('show'); }, 300);
-        });
-      })();
+    /* Works from ANY screen: Esc opens the Options menu, 12 Ups clamp the cursor
+       on 'New Game' (the menu does not wrap), then step Down to the wanted line
+       and press Enter. For New Game we also confirm the episode and difficulty
+       screens so it lands in the game. */
+    var steps = [];
+    steps.push(['Escape', 700]);
+    for (var i = 0; i < 12; i++) steps.push(['ArrowUp', 170]);
+    for (var d = 0; d < idx; d++) steps.push(['ArrowDown', 170]);
+    steps.push(['Enter', 900]);
+    if (idx === 0) { steps.push(['Enter', 1200]); steps.push(['Enter', 1200]); }
+
+    note('Starting: ' + MENU_ITEMS[idx] + '…');
+    var k = 0;
+    (function run() {
+      if (k >= steps.length) {
+        note('Done — if the game did not start, tell me what is on screen.');
+        setTimeout(function () { document.getElementById('mh').classList.remove('show'); }, 800);
+        return;
+      }
+      var step = steps[k++];
+      stepKey(step[0], function () { setTimeout(run, step[1]); });
     })();
   }
   (function buildMenuHelper() {
-    var list = document.getElementById('mh-list');
-    MENU_ITEMS.forEach(function (name, i) {
-      var b = document.createElement('button');
-      b.textContent = name;
-      b.addEventListener('click', function (e) {
-        e.stopPropagation();
-        tapMenuLine(i);
-        setTimeout(function () { document.getElementById('mh').classList.remove('show'); }, 250);
-      });
-      list.appendChild(b);
-    });
+    /* One key per tap, generously spaced: rapid presses get dropped by the
+       emulator, so you drive the cursor yourself and watch it move. */
+    var busy = false;
+    function one(name) {
+      if (busy) return;
+      busy = true;
+      note(name === 'Enter' ? 'Select' : (name === 'ArrowUp' ? 'Up' : 'Down'));
+      stepKey(name, function () { setTimeout(function () { busy = false; }, 260); });
+    }
+    document.getElementById('mh-up').addEventListener('click', function (e) { e.stopPropagation(); one('ArrowUp'); });
+    document.getElementById('mh-down').addEventListener('click', function (e) { e.stopPropagation(); one('ArrowDown'); });
+    document.getElementById('mh-enter').addEventListener('click', function (e) { e.stopPropagation(); one('Enter'); });
+
     document.getElementById('mhbtn').addEventListener('click', function (e) {
       e.stopPropagation();
       var eng = document.getElementById('mh-eng');
