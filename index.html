@@ -110,33 +110,53 @@
   function release(k){ if (!held[k]) return; delete held[k]; emit('keyup', k, CODES[k]); }
   function releaseAll() { Object.keys(held).forEach(function (k) { emit('keyup', k, CODES[k]); delete held[k]; }); }
 
-  /* ---------- drag anywhere on the game = move / turn ---------- */
-  var origin = null;
+  /* ---------- swipe to move/turn, tap to select ---------- */
+  var origin = null, moved = false;
   function isAct(t) { return t && t.closest && t.closest('.act'); }
+
+  function tapSelect() {            // a tap with no swipe = Enter (menu select)
+    emit('keydown', 'Enter', 13);
+    setTimeout(function () { emit('keyup', 'Enter', 13); }, 70);
+  }
   function pStart(e) {
     if (isAct(e.target)) return;
     var t = e.touches ? e.touches[0] : e;
     origin = { x: t.clientX, y: t.clientY };
+    moved = false;
   }
   function pMove(e) {
     if (!origin) return;
     var t = e.touches ? e.touches[0] : e;
-    var dx = t.clientX - origin.x, dy = t.clientY - origin.y, T = 20;
-    dx < -T ? press('ArrowLeft')  : release('ArrowLeft');
-    dx >  T ? press('ArrowRight') : release('ArrowRight');
-    dy < -T ? press('ArrowUp')    : release('ArrowUp');
-    dy >  T ? press('ArrowDown')  : release('ArrowDown');
+    var dx = t.clientX - origin.x, dy = t.clientY - origin.y, T = 14;
+    var any = false;
+    if (dx < -T) { press('ArrowLeft');  any = true; } else release('ArrowLeft');
+    if (dx >  T) { press('ArrowRight'); any = true; } else release('ArrowRight');
+    if (dy < -T) { press('ArrowUp');    any = true; } else release('ArrowUp');
+    if (dy >  T) { press('ArrowDown');  any = true; } else release('ArrowDown');
+    if (any) moved = true;
     if (e.cancelable) e.preventDefault();
   }
-  function pEnd() { origin = null; releaseAll(); }
+  function pEnd() {
+    var wasTap = origin && !moved;
+    origin = null; releaseAll();
+    if (wasTap) tapSelect();
+  }
 
   stage.addEventListener('touchstart', pStart, { passive:true });
   stage.addEventListener('touchmove',  pMove,  { passive:false });
   stage.addEventListener('touchend',   pEnd);
-  stage.addEventListener('touchcancel',pEnd);
+  stage.addEventListener('touchcancel', function () { origin = null; releaseAll(); });
   stage.addEventListener('mousedown',  pStart);
   stage.addEventListener('mousemove',  pMove);
   stage.addEventListener('mouseup',    pEnd);
+
+  /* laptop: mouse wheel scrolls menus (up/down) */
+  stage.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var k = e.deltaY < 0 ? 'ArrowUp' : 'ArrowDown';
+    emit('keydown', k, CODES[k]);
+    setTimeout(function () { emit('keyup', k, CODES[k]); }, 90);
+  }, { passive:false });
 
   /* ---------- the only two buttons ---------- */
   function bindAct(el, key, code) {
