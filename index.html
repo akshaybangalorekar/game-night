@@ -238,7 +238,7 @@
     if (wait > 0) setTimeout(function () { if (!held[k]) send('keyup', CODES[k]); }, wait);
     else send('keyup', CODES[k]);
   }
-  function releaseAll() { Object.keys(held).forEach(release); }
+  function releaseAll() { clearTimeout(pendTimer); Object.keys(held).forEach(release); }
   function tapKey(k) { press(k); setTimeout(function () { release(k); }, MIN_HOLD); }
 
   /* bootstrap: window.__ci is captured inside js-dos's own key handler, so one
@@ -261,11 +261,23 @@
   var origin = null, moved = false, curKey = null, lpTimer = null, lpFired = false;
   var touchSeen = 0;   /* touch devices also emit synthetic mouse events - ignore those */
   function onAct(t) { return t && t.closest && t.closest('.act'); }
+  /* Turning felt too quick: the left/right key is now held for ~80% of the swipe
+     (it starts 60ms in), so each swipe turns 20% less. Tune H_TURN_DELAY to
+     taste - bigger = slower turning. */
+  var H_TURN_DELAY = 60;
+  var pendTimer = null;
   function setDir(k) {
     if (curKey === k) return;
+    clearTimeout(pendTimer);
     if (curKey) release(curKey);
     curKey = k;
-    if (k) press(k);
+    if (!k) return;
+    if (k === 'ArrowLeft' || k === 'ArrowRight') {
+      var kk = k;
+      pendTimer = setTimeout(function () { if (curKey === kk) press(kk); }, H_TURN_DELAY);
+    } else {
+      press(k);
+    }
   }
   function start(e) {
     if (!started) return;
