@@ -15,11 +15,20 @@ A DOS games player in the browser. Currently running the shareware
 
 ## Controls
 
-**Laptop:** arrows move/turn, `Ctrl` fire, `Space` opens doors, `Shift` run,
-`Alt`+arrow strafes, `1`–`4` weapons, `Esc` menu, `F1` help, `F2`/`F3` save/load.
+On load it asks **"How are you playing?"** — pick **On a mobile** or **On a laptop**.
+Either way it goes fullscreen (that click is the gesture the browser needs).
 
-**Phone:** the on-screen pad — arrows, FIRE, USE/DOOR, ENTER, MENU. It asks you to
-rotate to landscape.
+**Mobile** — only two transparent buttons, overlaid:
+
+- **DOOR** (left thumb) — opens doors / uses lifts
+- **FIRE** (right thumb) — shoots
+
+Movement is by **dragging anywhere on the screen**: drag up/down to walk
+forward/back, left/right to turn. No d-pad, nothing else on screen.
+
+**Laptop** — no on-screen buttons, just the keyboard: arrows move/turn,
+`Ctrl` fire, `Space` doors, `Shift` run, `Alt`+arrow strafe, `1`–`4` weapons,
+`Esc` menu, `F1` help, `F2`/`F3` save/load.
 
 ## Saves
 
