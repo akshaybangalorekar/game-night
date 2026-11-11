@@ -23,8 +23,12 @@ Either way it goes fullscreen (that click is the gesture the browser needs).
 - **DOOR** (left thumb) — opens doors / uses lifts
 - **FIRE** (right thumb) — shoots
 
-Movement is by **dragging anywhere on the screen**: drag up/down to walk
-forward/back, left/right to turn. No d-pad, nothing else on screen.
+Movement is by **swiping anywhere on the screen**: swipe up/down to walk
+forward/back, swipe left/right to turn. No d-pad, nothing else on screen.
+
+**Menus** (New Game / Load Game / Save Game): swipe up/down to move the
+highlight, **tap** to select. **Press and hold** without moving sends `Esc`,
+so menus and the help pages are always escapable.
 
 **Laptop** — no on-screen buttons, just the keyboard: arrows move/turn,
 `Ctrl` fire, `Space` doors, `Shift` run, `Alt`+arrow strafe, `1`–`4` weapons,

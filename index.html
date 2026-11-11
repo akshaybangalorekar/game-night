@@ -134,20 +134,36 @@
   var CODES = { ArrowUp:38, ArrowDown:40, ArrowLeft:37, ArrowRight:39, ' ':32, Control:17 };
   var held = {};
   function pad() { return document.querySelector('#dos canvas') || document.getElementById('dos'); }
+  /* KeyboardEvent's constructor silently drops keyCode/which, and DOSBox reads those.
+     So build the event, then define keyCode/which on the instance itself. */
+  function mkKey(type, key, code) {
+    var ev;
+    try { ev = new KeyboardEvent(type, { key: key, code: key, bubbles: true, cancelable: true }); }
+    catch (e) { ev = document.createEvent('Event'); ev.initEvent(type, true, true); }
+    try { Object.defineProperty(ev, 'keyCode', { get: function () { return code; } }); } catch (e) {}
+    try { Object.defineProperty(ev, 'which',   { get: function () { return code; } }); } catch (e) {}
+    return ev;
+  }
   function emit(type, key, code) {
     var el = pad(); if (!el) return;
-    var ev;
-    try { ev = new KeyboardEvent(type, { key:key, code:key, keyCode:code, which:code, bubbles:true, cancelable:true }); }
-    catch (e) { ev = document.createEvent('Event'); ev.initEvent(type, true, true); ev.key = key; ev.keyCode = code; ev.which = code; }
-    try { el.dispatchEvent(ev); } catch (e) {}
-    try { document.dispatchEvent(new KeyboardEvent(type, { key:key, keyCode:code, which:code, bubbles:true })); } catch (e) {}
+    try { el.dispatchEvent(mkKey(type, key, code)); } catch (e) {}
+    try { document.dispatchEvent(mkKey(type, key, code)); } catch (e) {}
   }
-  function press(k)  { if (held[k]) return; held[k] = 1; emit('keydown', k, CODES[k]); }
-  function release(k){ if (!held[k]) return; delete held[k]; emit('keyup', k, CODES[k]); }
-  function releaseAll() { Object.keys(held).forEach(function (k) { emit('keyup', k, CODES[k]); delete held[k]; }); }
+  /* DOSBox samples the keyboard ~70x/sec, so a key held for only a few ms is missed
+     entirely. Every press is therefore kept down for at least MIN_HOLD ms. */
+  var MIN_HOLD = 90;
+  function press(k) { if (held[k]) return; held[k] = Date.now(); emit('keydown', k, CODES[k]); }
+  function release(k) {
+    if (!held[k]) return;
+    var t = held[k]; delete held[k];
+    var wait = MIN_HOLD - (Date.now() - t);
+    if (wait > 0) setTimeout(function () { if (!held[k]) emit('keyup', k, CODES[k]); }, wait);
+    else emit('keyup', k, CODES[k]);
+  }
+  function releaseAll() { Object.keys(held).forEach(function (k) { release(k); }); }
 
   /* ---------- swipe to move/turn, tap to select ---------- */
-  var origin = null, moved = false;
+  var origin = null, moved = false, lpTimer = null, lpFired = false;
   function isAct(t) { return t && t.closest && t.closest('.act'); }
 
   function tapSelect() {            // a tap with no swipe = Enter (menu select)
@@ -158,22 +174,32 @@
     if (isAct(e.target)) return;
     var t = e.touches ? e.touches[0] : e;
     origin = { x: t.clientX, y: t.clientY };
-    moved = false;
+    moved = false; lpFired = false;
+    /* press and hold without moving = Esc, so menus and the help pages are escapable
+       without a visible button */
+    clearTimeout(lpTimer);
+    lpTimer = setTimeout(function () {
+      if (moved || !origin) return;
+      lpFired = true;
+      emit('keydown', 'Escape', 27);
+      setTimeout(function () { emit('keyup', 'Escape', 27); }, 90);
+    }, 700);
   }
   function pMove(e) {
     if (!origin) return;
     var t = e.touches ? e.touches[0] : e;
-    var dx = t.clientX - origin.x, dy = t.clientY - origin.y, T = 14;
+    var dx = t.clientX - origin.x, dy = t.clientY - origin.y, T = 12;
     var any = false;
     if (dx < -T) { press('ArrowLeft');  any = true; } else release('ArrowLeft');
     if (dx >  T) { press('ArrowRight'); any = true; } else release('ArrowRight');
     if (dy < -T) { press('ArrowUp');    any = true; } else release('ArrowUp');
     if (dy >  T) { press('ArrowDown');  any = true; } else release('ArrowDown');
-    if (any) moved = true;
+    if (any) { moved = true; clearTimeout(lpTimer); }
     if (e.cancelable) e.preventDefault();
   }
   function pEnd() {
-    var wasTap = origin && !moved;
+    clearTimeout(lpTimer);
+    var wasTap = origin && !moved && !lpFired;
     origin = null; releaseAll();
     if (wasTap) tapSelect();
   }
@@ -181,7 +207,7 @@
   stage.addEventListener('touchstart', pStart, { passive:true });
   stage.addEventListener('touchmove',  pMove,  { passive:false });
   stage.addEventListener('touchend',   pEnd);
-  stage.addEventListener('touchcancel', function () { origin = null; releaseAll(); });
+  stage.addEventListener('touchcancel', function () { clearTimeout(lpTimer); origin = null; releaseAll(); });
   stage.addEventListener('mousedown',  pStart);
   stage.addEventListener('mousemove',  pMove);
   stage.addEventListener('mouseup',    pEnd);
