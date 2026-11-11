@@ -1,76 +1,36 @@
-# 🎉 Game Night
+# Wolfenstein 3D (shareware) — browser build
 
-A simple place for kids to add their friends and play games together — each on their own phone,
-with **voice** and **chat** built in.
+The shareware **Episode 1: Escape from Wolfenstein** running in the browser via
+[js-dos](https://js-dos.com) (a DOSBox build compiled to WebAssembly).
 
-## Games
+## What's here
 
-- **Uno** — match colour or number, skips, reverses, +2, wild, wild +4. First to empty their hand wins.
-- **Ludo** — roll a 6 to leave the yard, race four tokens home, send friends back.
-- **Chess** — full rules: castling, en passant, promotion, check and checkmate.
-- **Mafia** — hidden roles dealt privately to every phone; the app runs the nights and the votes.
-- **Air Hockey** — real-time paddles, first to 7 goals. Best when everyone is on the same Wi-Fi.
+| Path | What |
+|---|---|
+| `index.html` | the whole player: screen, on-screen controls, landscape handling |
+| `wolf3d.jsdos` | the game bundle (shareware `.WL1` files + `dosbox.conf`) |
+| `vendor/js-dos/` | js-dos player (`js-dos.js`, `js-dos.css`) |
+| `wdosbox.js`, `wdosbox.wasm` | the DOSBox core (js-dos looks for these at the site root) |
 
-## How it works
+## Controls
 
-1. **Open the app** — you get a name and a **friend code** (like `YJB YQW`).
-2. **Add friends** by typing their code. Your friends list is kept on your device and shows up
-   inside every room, so you can invite them with one tap.
-3. **Pick a game**, then **make a room**. A big **QR code** appears — friends just point a camera
-   at it (or tap **Scan to join** in the app) and they're in. No typing needed. There's also a
-   4-letter code and a copy-link button as backups.
-4. **Share the app itself** with the **🔳 Share the app** button on the home screen — it shows a QR
-   a friend can scan to open Game Night.
-5. **Invite from your friends list** — inside a room, tap **Invite** next to a friend to send them
-   the room link (opens your phone's share sheet, or copies the link).
-6. **Talk as you play** — tap **Turn on mic** and your mic stays live for **5 minutes** (then it
-   switches itself off, so nothing is left open by accident). Tap again any time to re-open it.
-   Or use the chat with one-tap emoji.
+**Laptop:** arrows move/turn, `Ctrl` fire, `Space` opens doors, `Shift` run,
+`Alt`+arrow strafes, `1`–`4` weapons, `Esc` menu, `F1` help, `F2`/`F3` save/load.
 
-No accounts, no sign-ups, no installs. It's a static site that runs in the browser.
+**Phone:** the on-screen pad — arrows, FIRE, USE/DOOR, ENTER, MENU. It asks you to
+rotate to landscape.
 
-## How it connects
+## Saves
 
-Signalling and game data go over a **public MQTT broker** (WebSocket), using
-[mqtt.js](https://github.com/mqttjs/MQTT.js). Every phone opens one WebSocket to the broker and
-talks through it, so two phones on **any** networks can play together — no NAT problems, no relay,
-no accounts.
+The game's own menu (`Esc` → Save game) writes save files into the DOS filesystem,
+which js-dos keeps in this browser. If progress ever fails to survive a reload on your
+device, the fix is to export/import the save files explicitly — ask and I'll add it.
 
-Earlier versions used PeerJS's public cloud for signalling; that server is currently unreliable
-(connections often take minutes or fail outright), so it was replaced.
+## Licensing
 
-**Voice** still uses WebRTC, with the connection handshake carried over the same broker. Voice
-depends on the two phones being able to reach each other directly, so it works best on the same
-Wi-Fi — if it can't connect, the games and chat carry on regardless.
-
-## Saving rooms (optional)
-
-Rooms, scores and the "already used" list can be saved to a GitHub repo so a room can be resumed
-later. Reads are public; **writes need a fine-grained token** (Contents: read and write on that one
-repo). Enter it once in **⚙ Storage settings** on *your* device — it stays in that browser only and
-is never uploaded or shared. Leave it blank to run without saving.
-
-## Run locally
-
-Plain HTML/CSS/JS — no build step:
-
-```bash
-python3 -m http.server 8000
-# then open http://localhost:8000
-```
-
-## Deploy
-
-Static site — GitHub Pages works out of the box: **Settings → Pages → Deploy from a branch →
-`main` / root**.
-
-## Notes
-
-- Friend codes and the friends list live only on your device (localStorage).
-- No data is stored on any server; chat and game state live only in the room.
-- Bundled libraries: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator),
-  [jsQR](https://github.com/cozmo/jsQR) and [mqtt.js](https://github.com/mqttjs/MQTT.js) — all MIT.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+- **Game:** Wolfenstein 3D shareware Episode 1, © 1992 id Software, published by Apogee.
+  Apogee's shareware licence permits copying and online distribution of Episode 1
+  **unmodified**, which is what this is. The full game (`.WL6`) is *not* included.
+- **js-dos / DOSBox:** GPL-2.0. Because they're bundled here, this site is distributed
+  under GPL-2.0 too. Sources: https://github.com/caiiiycuk/js-dos and
+  https://www.dosbox.com
