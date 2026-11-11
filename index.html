@@ -14,7 +14,9 @@
   #stage { position:relative; flex:1; background:#000; overflow:hidden; touch-action:none; }
 
   #dos { position:absolute; inset:0; }
-  #dos canvas { image-rendering: pixelated; }
+  /* Input goes through the engine API, so the canvas must not swallow stray
+     clicks: in Wolf3D a mouse click fires the gun. */
+  #dos canvas { image-rendering: pixelated; pointer-events: none; }
   /* strip js-dos chrome: sidebar (save/fullscreen/turbo/volume/gear), soft keyboard */
   #dos .sidebar { display:none !important; }
   #dos .hg-theme-default { display:none !important; }
@@ -62,16 +64,18 @@
   #gnote { min-height:18px; color:#c9a227; font-size:13px; max-width:520px; }
 
   /* menu helper: one button per Wolf3D menu line */
-  #mh { position:absolute; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
-    background:rgba(0,0,0,.72); padding:16px; }
+  /* compact bar at the bottom so the game menu stays visible while stepping */
+  #mh { position:absolute; left:0; right:0; bottom:calc(6px + env(safe-area-inset-bottom));
+    z-index:20; display:none; justify-content:center; padding:0 8px; pointer-events:none; }
   #mh.show { display:flex; }
-  #mh .box { background:#14141d; border:1px solid #2c2c3c; border-radius:16px; padding:14px;
-    display:flex; flex-direction:column; gap:8px; width:100%; max-width:420px; }
-  #mh .box h3 { margin:0 0 4px; font-size:13px; color:#9a9a9a; font-weight:700; letter-spacing:1px; }
-  #mh button { padding:12px; border-radius:11px; background:#1e1e2c; color:#eee;
-    border:1px solid #333; font-size:15px; font-weight:700; cursor:pointer; }
+  #mh .box { pointer-events:auto; background:rgba(16,16,24,.88); border:1px solid #2c2c3c;
+    border-radius:14px; padding:7px; display:flex; flex-direction:row; gap:7px; align-items:center;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  #mh .box h3 { display:none; }
+  #mh button { padding:11px 14px; border-radius:10px; background:#1e1e2c; color:#eee;
+    border:1px solid #333; font-size:14px; font-weight:700; cursor:pointer; }
   #mh button:active { background:#c9a227; color:#111; }
-  #mh .close { background:#2a1a1a; border-color:#5a2a2a; color:#e8a0a0; }
+  #mh .close { background:#2a1a1a; border-color:#5a2a2a; color:#e8a0a0; padding:11px 12px; }
   #mhbtn { position:absolute; top:calc(10px + env(safe-area-inset-top)); right:calc(10px + env(safe-area-inset-right));
     width:46px; height:46px; border-radius:12px; pointer-events:auto; touch-action:none;
     background:rgba(20,20,28,.55); border:1px solid rgba(255,255,255,.25); color:#fff;
@@ -146,15 +150,12 @@
 
 <div id="mh">
   <div class="box">
-    <h3>MENU — step the cursor, then Select</h3>
-    <div class="row2" style="display:flex;gap:8px">
-      <button id="mh-up"   style="flex:1">▲ Up</button>
-      <button id="mh-down" style="flex:1">▼ Down</button>
-      <button id="mh-enter" style="flex:1;background:#c9a227;color:#111;border:0">Select</button>
-    </div>
-    <div id="mh-note" style="font-size:12px;color:#c9a227;min-height:15px"></div>
-    <div id="mh-eng" style="font-size:12px;color:#8a8a8a"></div>
-    <button class="close" id="mh-close">Close</button>
+    <button id="mh-up">▲</button>
+    <button id="mh-down">▼</button>
+    <button id="mh-enter" style="background:#c9a227;color:#111;border:0">Select</button>
+    <span id="mh-note" style="font-size:11px;color:#c9a227"></span>
+    <span id="mh-eng" style="display:none"></span>
+    <button class="close" id="mh-close">✕</button>
   </div>
 </div>
 
