@@ -252,6 +252,7 @@
 
   /* ---------- gestures ---------- */
   var origin = null, moved = false, curKey = null, lpTimer = null, lpFired = false;
+  var touchSeen = 0;   /* touch devices also emit synthetic mouse events - ignore those */
   function onAct(t) { return t && t.closest && t.closest('.act'); }
   function setDir(k) {
     if (curKey === k) return;
@@ -261,6 +262,8 @@
   }
   function start(e) {
     if (!started) return;
+    if (e.type === 'touchstart') touchSeen = Date.now();
+    else if (Date.now() - touchSeen < 1000) return;
     if (e.target.closest && e.target.closest('.panel')) return;
     if (onAct(e.target)) return;
     var t = e.touches ? e.touches[0] : e;
@@ -274,6 +277,7 @@
   }
   function move(e) {
     if (!origin) return;
+    if (e.type !== 'touchmove' && Date.now() - touchSeen < 1000) return;
     var t = e.touches ? e.touches[0] : e;
     if (!t) return;
     var dx = t.clientX - origin.x, dy = t.clientY - origin.y;
@@ -283,12 +287,32 @@
     if (ax > ay) setDir(dx < 0 ? 'ArrowLeft' : 'ArrowRight');
     else         setDir(dy < 0 ? 'ArrowUp'   : 'ArrowDown');
   }
+  var lastEnd = 0;
   function end(e) {
+    if (e && e.type !== 'touchend' && e.type !== 'touchcancel' && Date.now() - touchSeen < 1000) return;
+    /* a touch tap also fires a synthetic mouseup - run once per gesture */
+    if (Date.now() - lastEnd < 80) { clearTimeout(lpTimer); origin = null; return; }
+    lastEnd = Date.now();
     clearTimeout(lpTimer);
-    var wasTap = origin && !moved && !lpFired;
-    var pt = origin;
+
+    var t = (e && e.changedTouches && e.changedTouches[0]) || origin;
+    var dx = (t && origin) ? t.clientX - origin.x : 0;
+    var dy = (t && origin) ? t.clientY - origin.y : 0;
+    var dist = Math.max(Math.abs(dx), Math.abs(dy));
+
+    /* a quick flick may not produce touchmove at all - treat the final
+       displacement as a one-step swipe instead of a tap */
+    if (origin && !moved && !lpFired && dist >= 12) {
+      var k = Math.abs(dx) > Math.abs(dy)
+        ? (dx < 0 ? 'ArrowLeft' : 'ArrowRight')
+        : (dy < 0 ? 'ArrowUp' : 'ArrowDown');
+      moved = true;
+      tapKey(k);
+    }
+
+    var wasTap = origin && !moved && !lpFired && dist < 12;
     setDir(null); releaseAll(); origin = null;
-    if (wasTap) { tapKey('Enter'); }
+    if (wasTap) tapKey('Enter');
   }
   document.addEventListener('touchstart', start, { capture:true, passive:true });
   document.addEventListener('touchmove',  move,  { capture:true, passive:false });
