@@ -78,6 +78,30 @@
     font-size:20px; display:flex; align-items:center; justify-content:center;
     backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
 
+  /* saves panel */
+  #sv { position:absolute; inset:0; z-index:22; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.75); padding:14px; }
+  #sv.show { display:flex; }
+  #sv .box { background:#14141d; border:1px solid #2c2c3c; border-radius:16px; padding:14px;
+    display:flex; flex-direction:column; gap:9px; width:100%; max-width:440px; max-height:100%; overflow:auto; }
+  #sv h3 { margin:0; font-size:13px; color:#9a9a9a; letter-spacing:1px; }
+  #sv input { padding:11px; border-radius:10px; border:1px solid #333; background:#0e0e15; color:#eee; font-size:14px; }
+  #sv button { padding:11px; border-radius:10px; background:#1e1e2c; color:#eee; border:1px solid #333;
+    font-size:14px; font-weight:700; cursor:pointer; text-align:left; }
+  #sv button.primary { background:#c9a227; color:#111; border:0; text-align:center; }
+  #sv button:active { background:#2a2a3c; }
+  #sv .row2 { display:flex; gap:8px; }
+  #sv .row2 input { flex:1; }
+  #sv .slot { display:flex; justify-content:space-between; align-items:center; }
+  #sv .slot .meta { font-size:11px; color:#8a8a8a; font-weight:400; }
+  #sv .msg { font-size:12px; color:#c9a227; min-height:15px; }
+  #sv .close { background:#2a1a1a; border-color:#5a2a2a; color:#e8a0a0; text-align:center; }
+  #svbtn { position:absolute; top:calc(10px + env(safe-area-inset-top)); right:calc(64px + env(safe-area-inset-right));
+    width:46px; height:46px; border-radius:12px; pointer-events:auto; touch-action:none;
+    background:rgba(20,20,28,.55); border:1px solid rgba(255,255,255,.25); color:#fff;
+    font-size:17px; display:flex; align-items:center; justify-content:center;
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+
   #guide .rows { display:flex; flex-direction:column; gap:10px; margin:6px 0 4px;
     width:100%; max-width:520px; }
   #guide .row { display:flex; align-items:center; gap:14px; text-align:left;
@@ -97,7 +121,26 @@
       <div class="act" id="door">DOOR</div>
       <div class="act" id="fire">FIRE</div>
       <div id="mhbtn" title="Game menu">☰</div>
+      <div id="svbtn" title="Saves">💾</div>
     </div>
+  </div>
+</div>
+
+<div id="sv">
+  <div class="box">
+    <h3>SAVES — synced to your GitHub repo</h3>
+    <div id="sv-tokenwrap">
+      <input id="sv-token" type="password" placeholder="GitHub token (paste once per device)" autocomplete="off">
+      <div class="row2" style="margin-top:8px"><button class="primary" id="sv-savetoken">Save token</button></div>
+    </div>
+    <div class="row2">
+      <input id="sv-name" placeholder="Save name (e.g. castle-3)">
+      <button class="primary" id="sv-do" style="flex:0 0 96px">Save as</button>
+    </div>
+    <div class="msg" id="sv-msg"></div>
+    <h3>CLOUD SAVES</h3>
+    <div id="sv-list"></div>
+    <button class="close" id="sv-close">Close</button>
   </div>
 </div>
 
@@ -321,6 +364,158 @@
       e.stopPropagation();
       document.getElementById('mh').classList.remove('show');
     });
+  })();
+
+  /* ---------------- saves (GitHub-backed, option B) ----------------
+     The DOS filesystem lives in OPFS at /jsdos/saves. A save = that subtree,
+     serialised to JSON and stored as saves/<name>.json in the repo. Reading is
+     public (the repo is public); writing needs a token pasted once per device. */
+  var GH_OWNER = 'akshaybangalorekar', GH_REPO = 'game-night', GH_DIR = 'saves';
+  var TOKEN_KEY = 'dosgames.ghtoken';
+
+  function b64enc(u8) { var s=''; for (var i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]); return btoa(s); }
+  function b64dec(str) { var bin=atob(str), u8=new Uint8Array(bin.length); for (var i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); return u8; }
+
+  async function snapSaves() {
+    var root = await navigator.storage.getDirectory();
+    var out = {};
+    async function walk(dir, path, depth) {
+      if (depth > 4) return;
+      for await (const [name, h] of dir.entries()) {
+        var p = path + '/' + name;
+        if (h.kind === 'file') {
+          var f = await h.getFile();
+          out[p] = b64enc(new Uint8Array(await f.arrayBuffer()));
+        } else { out[p + '/'] = null; await walk(h, p, depth + 1); }
+      }
+    }
+    var jsdos;
+    try { jsdos = await root.getDirectoryHandle('jsdos'); } catch (e) { return out; }
+    var saves;
+    try { saves = await jsdos.getDirectoryHandle('saves'); } catch (e) { return out; }
+    await walk(saves, '/jsdos/saves', 0);
+    return out;
+  }
+
+  async function restoreSaves(snap) {
+    var root = await navigator.storage.getDirectory();
+    async function ensure(parts) {
+      var d = root;
+      for (var i = 0; i < parts.length; i++) d = await d.getDirectoryHandle(parts[i], { create:true });
+      return d;
+    }
+    for (var key in snap) {
+      if (!Object.prototype.hasOwnProperty.call(snap, key)) continue;
+      var rel = key.replace(/^\/jsdos\//, '');
+      if (key.charAt(key.length - 1) === '/') { await ensure(rel.slice(0, -1).split('/')); continue; }
+      var parts = rel.split('/'); var fname = parts.pop();
+      var dir = await ensure(parts);
+      var fh = await dir.getFileHandle(fname, { create:true });
+      var w = await fh.createWritable();
+      await w.write(b64dec(snap[key]));
+      await w.close();
+    }
+  }
+
+  function ghHeaders() {
+    var t = localStorage.getItem(TOKEN_KEY);
+    return t ? { 'Authorization': 'Bearer ' + t, 'Accept': 'application/vnd.github+json' } : { 'Accept': 'application/vnd.github+json' };
+  }
+
+  async function ghPut(name, obj) {
+    var api = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_DIR + '/' + encodeURIComponent(name) + '.json';
+    var body = { message: 'Save: ' + name, content: btoa(unescape(encodeURIComponent(JSON.stringify(obj)))) };
+    var cur = await fetch(api, { headers: ghHeaders() });
+    if (cur.ok) { var j = await cur.json(); if (j && j.sha) body.sha = j.sha; }
+    var res = await fetch(api, { method:'PUT', headers: Object.assign({ 'Content-Type':'application/json' }, ghHeaders()), body: JSON.stringify(body) });
+    if (!res.ok) throw new Error('GitHub ' + res.status + ' ' + (await res.text()).slice(0, 120));
+    return true;
+  }
+
+  async function ghList() {
+    var api = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_DIR;
+    var res = await fetch(api, { headers: ghHeaders() });
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error('GitHub ' + res.status);
+    var arr = await res.json();
+    return Array.isArray(arr) ? arr.filter(function (f) { return /\.json$/.test(f.name); }) : [];
+  }
+
+  async function ghGet(name) {
+    var api = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_DIR + '/' + encodeURIComponent(name) + '.json';
+    var res = await fetch(api, { headers: ghHeaders() });
+    if (!res.ok) throw new Error('GitHub ' + res.status);
+    var j = await res.json();
+    return JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g, '')))));
+  }
+
+  function svMsg(t) { document.getElementById('sv-msg').textContent = t; }
+
+  async function refreshList() {
+    var list = document.getElementById('sv-list');
+    list.innerHTML = '<div class="meta" style="font-size:12px;color:#8a8a8a">Loading…</div>';
+    try {
+      var files = await ghList();
+      list.innerHTML = '';
+      if (!files.length) { list.innerHTML = '<div style="font-size:12px;color:#8a8a8a">No cloud saves yet.</div>'; return; }
+      files.forEach(function (f) {
+        var name = f.name.replace(/\.json$/, '');
+        var b = document.createElement('button');
+        b.className = 'slot';
+        b.innerHTML = '<span>' + name + '</span><span class="meta">load</span>';
+        b.addEventListener('click', function (e) { e.stopPropagation(); loadSlot(name); });
+        list.appendChild(b);
+      });
+    } catch (e) {
+      var m = /Failed to fetch/i.test(e.message) ? 'Could not reach GitHub — check your connection.' : e.message;
+      list.innerHTML = '<div style="font-size:12px;color:#e8a0a0">' + m + '</div>';
+    }
+  }
+
+  async function saveSlot() {
+    var name = (document.getElementById('sv-name').value || '').trim();
+    if (!name) { svMsg('Give the save a name first.'); return; }
+    if (!localStorage.getItem(TOKEN_KEY)) { svMsg('Paste your GitHub token first.'); return; }
+    svMsg('Saving…');
+    try {
+      var snap = await snapSaves();
+      var n = Object.keys(snap).length;
+      if (!n) { svMsg('No save files yet. In the game press Save Game (☰ menu → Save Game), then try again.'); return; }
+      await ghPut(name, { name:name, when:new Date().toISOString(), files:snap });
+      svMsg('Saved "' + name + '" (' + n + ' files) to GitHub.');
+      refreshList();
+    } catch (e) { svMsg('Save failed: ' + (/Failed to fetch/i.test(e.message) ? 'could not reach GitHub' : e.message)); }
+  }
+
+  async function loadSlot(name) {
+    svMsg('Loading "' + name + '"…');
+    try {
+      var data = await ghGet(name);
+      await restoreSaves(data.files || {});
+      svMsg('Loaded. Restarting the game…');
+      setTimeout(function () { location.reload(); }, 700);
+    } catch (e) { svMsg('Load failed: ' + (/Failed to fetch/i.test(e.message) ? 'could not reach GitHub' : e.message)); }
+  }
+
+  (function wireSaves() {
+    var panel = document.getElementById('sv');
+    var tw = document.getElementById('sv-tokenwrap');
+    function syncTokenRow() { tw.style.display = localStorage.getItem(TOKEN_KEY) ? 'none' : 'block'; }
+    syncTokenRow();
+    document.getElementById('svbtn').addEventListener('click', function (e) {
+      e.stopPropagation(); panel.classList.add('show'); svMsg(''); refreshList();
+    });
+    document.getElementById('sv-close').addEventListener('click', function (e) {
+      e.stopPropagation(); panel.classList.remove('show');
+    });
+    document.getElementById('sv-savetoken').addEventListener('click', function (e) {
+      e.stopPropagation();
+      var v = (document.getElementById('sv-token').value || '').trim();
+      if (!v) { svMsg('Paste a token first.'); return; }
+      localStorage.setItem(TOKEN_KEY, v);
+      syncTokenRow(); svMsg('Token stored on this device.'); refreshList();
+    });
+    document.getElementById('sv-do').addEventListener('click', function (e) { e.stopPropagation(); saveSlot(); });
   })();
 
   bindAct(document.getElementById('door'), ' ');
