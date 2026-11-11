@@ -202,67 +202,52 @@
     try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {}
   }
 
-  /* ---------- key injection ---------- */
-  var CODES = { ArrowUp:38, ArrowDown:40, ArrowLeft:37, ArrowRight:39, ' ':32, Control:17, Enter:13, Escape:27 };
-  var MIN_HOLD = 150;
+  /* ---------- key injection ----------
+     Synthetic DOM key events do NOT reach the game (only real ones do), but js-dos's
+     own engine API does: ci.sendKeyEvent(code, isDown). The vendored js-dos is patched
+     to expose that object as window.__ci. Codes are the engine's key codes. */
+  var CODES = { ArrowUp:265, ArrowDown:264, ArrowLeft:263, ArrowRight:262,
+                Enter:257, Escape:256, ' ':32, Control:341 };
+  var MIN_HOLD = 120;
   var held = {};
 
-  function pad() { return document.querySelector('#dos canvas') || document.getElementById('dos'); }
-  function mkKey(type, key, code) {
-    var ev;
-    try { ev = new KeyboardEvent(type, { key:key, code:key, bubbles:true, cancelable:true }); }
-    catch (e) { ev = document.createEvent('Event'); ev.initEvent(type, true, true); }
-    try { Object.defineProperty(ev, 'keyCode', { get:function(){ return code; } }); } catch (e) {}
-    try { Object.defineProperty(ev, 'which',   { get:function(){ return code; } }); } catch (e) {}
-    return ev;
+  function ci() { return window.__ci || null; }
+
+  function send(type, code) {
+    var c = ci();
+    if (c && c.sendKeyEvent) { try { c.sendKeyEvent(code, type === 'keydown'); return true; } catch (e) {} }
+    return false;
   }
-  function emit(type, key, code) {
-    var el = pad(); if (!el) return;
-    try { el.dispatchEvent(mkKey(type, key, code)); } catch (e) {}
-    try { document.dispatchEvent(mkKey(type, key, code)); } catch (e) {}
+
+  function press(k) {
+    if (held[k]) return;
+    held[k] = Date.now();
+    send('keydown', CODES[k]);
   }
-  function press(k) { if (held[k]) return; held[k] = Date.now(); emit('keydown', k, CODES[k]); }
   function release(k) {
     if (!held[k]) return;
     var t = held[k]; delete held[k];
     var wait = MIN_HOLD - (Date.now() - t);
-    if (wait > 0) setTimeout(function () { if (!held[k]) emit('keyup', k, CODES[k]); }, wait);
-    else emit('keyup', k, CODES[k]);
+    if (wait > 0) setTimeout(function () { if (!held[k]) send('keyup', CODES[k]); }, wait);
+    else send('keyup', CODES[k]);
   }
   function releaseAll() { Object.keys(held).forEach(release); }
   function tapKey(k) { press(k); setTimeout(function () { release(k); }, MIN_HOLD); }
 
-  /* Wolf3D's menus are driven by the DOS mouse (that gun is the cursor) and ignore
-     arrow keys, so a tap is delivered as a real mouse click at the touched point.
-     Synthetic mouse events are accepted by js-dos v8 (verified). */
-  function clickAt(x, y) {
-    var el = pad(); if (!el) return;
-    function mk(type, buttons) {
-      var o = { bubbles:true, cancelable:true, view:window, clientX:x, clientY:y,
-                screenX:x, screenY:y, button:0, buttons:buttons };
-      try { return new MouseEvent(type, o); }
-      catch (e) { var ev = document.createEvent('MouseEvents');
-        ev.initMouseEvent(type, true, true, window, 1, x, y, x, y, false, false, false, false, 0, null); return ev; }
-    }
-    /* The menu highlight follows the DOS cursor, which the game tracks by
-       MOVEMENT, so a single jump does not register. Sweep there in small steps,
-       then click. */
-    var r = el.getBoundingClientRect();
-    var sx = r.left + r.width / 2, sy = r.top + r.height / 2;
-    var N = 12, i = 0;
-    (function step() {
-      var k = i / N;
-      var mx = sx + (x - sx) * k, my = sy + (y - sy) * k;
-      var o = { bubbles:true, cancelable:true, view:window, clientX:mx, clientY:my,
-                screenX:mx, screenY:my, button:0, buttons:0 };
-      try { el.dispatchEvent(new MouseEvent('mousemove', o)); }
-      catch (e) { var m = document.createEvent('MouseEvents');
-        m.initMouseEvent('mousemove', true, true, window, 0, mx, my, mx, my, false, false, false, false, 0, null);
-        el.dispatchEvent(m); }
-      if (++i <= N) { setTimeout(step, 25); return; }
-      el.dispatchEvent(mk('mousedown', 1));
-      setTimeout(function () { el.dispatchEvent(mk('mouseup', 0)); }, 80);
-    })();
+  /* bootstrap: window.__ci is captured inside js-dos's own key handler, so one
+     synthetic key event (ignored by the game) is enough to expose it - no real
+     keyboard needed, which is the whole point on a phone. */
+  function bootstrapCi() {
+    var tries = 0;
+    var iv = setInterval(function () {
+      if (ci() || ++tries > 120) { clearInterval(iv); return; }
+      var ev;
+      try { ev = new KeyboardEvent('keydown', { key:'F12', code:'F12', bubbles:true, cancelable:true }); }
+      catch (e) { ev = document.createEvent('Event'); ev.initEvent('keydown', true, true); }
+      try { Object.defineProperty(ev, 'keyCode', { get:function(){ return 123; } }); } catch (e) {}
+      try { Object.defineProperty(ev, 'which',   { get:function(){ return 123; } }); } catch (e) {}
+      try { window.dispatchEvent(ev); } catch (e) {}
+    }, 400);
   }
 
   /* ---------- gestures ---------- */
@@ -303,10 +288,7 @@
     var wasTap = origin && !moved && !lpFired;
     var pt = origin;
     setDir(null); releaseAll(); origin = null;
-    if (wasTap && pt) {
-      var t = (e && e.changedTouches && e.changedTouches[0]) || pt;
-      clickAt(t.clientX, t.clientY);
-    }
+    if (wasTap) { tapKey('Enter'); }
   }
   document.addEventListener('touchstart', start, { capture:true, passive:true });
   document.addEventListener('touchmove',  move,  { capture:true, passive:false });
@@ -591,6 +573,7 @@
         autoStart: true
       });
       try { if (dos.setMouseCapture) dos.setMouseCapture(true); } catch (e) {}
+      bootstrapCi();
       /* hide the loading veil once the emulator has produced a canvas */
       var poll = setInterval(function () {
         if (document.querySelector('#dos canvas')) { boot.classList.add('hide'); clearInterval(poll); }
