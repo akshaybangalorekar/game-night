@@ -54,6 +54,23 @@
     background:#1c1c2a; color:#fff; border:1px solid #333; font-size:16px; font-weight:700; }
   .pick button:hover, .pick button:active { border-color:#8a8a8a; background:#26263a; }
   .pick .ico { display:block; font-size:30px; margin-bottom:8px; }
+
+  /* game picker */
+  #games { position:fixed; inset:0; z-index:50; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:14px; padding:24px; text-align:center;
+    background:radial-gradient(900px 620px at 50% 28%, #1c1c30 0%, #000 72%); }
+  #games.hide { display:none; }
+  #games h1 { margin:0; font-size:clamp(22px,5vw,34px); letter-spacing:2px; font-weight:800; }
+  #games .q { margin:0; color:#9a9a9a; font-size:15px; }
+  .cards { display:flex; gap:16px; margin-top:8px; flex-wrap:wrap; justify-content:center; }
+  .card { width:200px; padding:18px; border-radius:18px; cursor:pointer; text-align:left;
+    background:#1c1c2a; color:#fff; border:1px solid #333; }
+  .card:hover, .card:active { border-color:#8a8a8a; background:#26263a; }
+  .card .t { font-size:17px; font-weight:800; margin-bottom:4px; }
+  .card .s { font-size:12px; color:#9a9a9a; }
+  .card.off { opacity:.45; cursor:not-allowed; }
+  .card.off:hover { border-color:#333; background:#1c1c2a; }
+  #gnote { min-height:18px; color:#c9a227; font-size:13px; }
 </style>
 </head>
 <body>
@@ -77,6 +94,22 @@
   </div>
 </div>
 
+<div id="games" class="hide">
+  <h1>DOS GAMES</h1>
+  <p class="q">Pick a game</p>
+  <div class="cards">
+    <button class="card" data-game="wolf3d">
+      <div class="t">Wolfenstein 3D</div>
+      <div class="s">shareware · Episode 1</div>
+    </button>
+    <button class="card off" data-game="roadrash">
+      <div class="t">Road Rash</div>
+      <div class="s">not available — commercial game</div>
+    </button>
+  </div>
+  <div id="gnote"></div>
+</div>
+
 <script src="vendor/js-dos/js-dos.js"></script>
 <script>
 (function () {
@@ -84,6 +117,9 @@
   var boot   = document.getElementById('boot');
   var hud    = document.getElementById('hud');
   var choose = document.getElementById('choose');
+  var games  = document.getElementById('games');
+  var gnote  = document.getElementById('gnote');
+  var GAMES  = { wolf3d: { bundle: 'wolf3d.jsdos', title: 'Wolfenstein 3D' } };
   var mode   = null;
   var started = false;
 
@@ -179,9 +215,21 @@
     if (!b) return;
     mode = b.getAttribute('data-mode');
     choose.classList.add('hide');
+    games.classList.remove('hide');
+  });
+
+  games.addEventListener('click', function (e) {
+    var c = e.target.closest('.card[data-game]');
+    if (!c) return;
+    var id = c.getAttribute('data-game');
+    if (!GAMES[id]) {
+      gnote.textContent = 'Road Rash is a commercial EA game — there is no free version I can host. Pick Wolfenstein, or tell me a racer to add.';
+      return;
+    }
+    games.classList.add('hide');
     goFull();
     hud.hidden = (mode !== 'mobile');
-    start();
+    start(id);
   });
 
   /* if fullscreen is lost, the next tap gets it back — no button needed */
@@ -190,12 +238,13 @@
   });
 
   /* ---------- boot the emulator ---------- */
-  function start() {
+  function start(gameId) {
     if (started) return;
     started = true;
+    var g = GAMES[gameId] || GAMES.wolf3d;
     try {
       var dos = Dos(document.getElementById('dos'));
-      dos.run('wolf3d.jsdos');
+      dos.run(g.bundle);
       setTimeout(function () { boot.classList.add('hide'); }, 6000);
       stage.addEventListener('pointerdown', function () { boot.classList.add('hide'); }, { once:true });
 
