@@ -25,10 +25,16 @@
   #dos { position:absolute; inset:0; }
   #dos canvas { image-rendering: pixelated; }
 
+  /* hide js-dos's own chrome so the game fills the screen (we supply our own controls) */
+  #dos > .flex-grow-0 { display: none !important; }
+  #dos .hg-theme-default { display: none !important; }
+  #dos .emulator-root { width: 100%; height: 100%; }
+  #dos .emulator-canvas { max-width: 100%; max-height: 100%; }
+
   /* touch controls */
   #pad { position:absolute; inset:0; pointer-events:none; }
   .btn { position:absolute; pointer-events:auto; display:flex; align-items:center; justify-content:center;
-    background:rgba(35,35,35,.82); border:1px solid rgba(255,255,255,.18); color:#fff;
+    background:rgba(25,25,25,.55); border:1px solid rgba(255,255,255,.22); color:#fff;
     border-radius:14px; font-weight:800; user-select:none; touch-action:none;
     backdrop-filter: blur(4px); box-shadow:0 2px 10px rgba(0,0,0,.45); }
   .btn:active, .btn.on { background:rgba(201,162,39,.85); color:#111; border-color:#e8c65a; }
@@ -63,6 +69,13 @@
     border-top:1px solid #222; color:var(--dim); font-size:11px; text-align:center; }
   #note b { color:#cfcfcf; }
   @media (min-width: 900px) { #pad { display:none; } #note { display:none; } }
+
+  .fs2 { left:14px; top:12px; width:48px; height:42px; font-size:16px; display:none; }
+  /* phones / short screens: give the game the whole viewport */
+  @media (max-height: 540px), (max-width: 820px) {
+    header, #note { display:none; }
+    .fs2 { display:flex; }
+  }
 </style>
 </head>
 <body>
@@ -89,6 +102,7 @@
       <div class="btn" id="use"  data-k=" " data-c="32">USE<br>DOOR</div>
       <div class="btn" id="run"  data-k="Enter" data-c="13">ENTER</div>
       <div class="btn" id="menu" data-k="Escape" data-c="27">MENU</div>
+      <div class="btn fs2" id="fs2" title="Fullscreen">⛶</div>
     </div>
   </div>
 
@@ -149,6 +163,9 @@
   });
 
   /* ---- fullscreen ---- */
+  var fs2 = document.getElementById('fs2');
+  if (fs2) fs2.addEventListener('click', function () { document.getElementById('fs').click(); });
+
   document.getElementById('fs').addEventListener('click', function () {
     var el = document.documentElement;
     if (!document.fullscreenElement) {
