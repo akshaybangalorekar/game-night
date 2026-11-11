@@ -1,6 +1,7 @@
-# Wolfenstein 3D (shareware) — browser build
+# DOS Games — Wolfenstein 3D (shareware)
 
-The shareware **Episode 1: Escape from Wolfenstein** running in the browser via
+A DOS games player in the browser. Currently running the shareware
+**Episode 1: Escape from Wolfenstein** via
 [js-dos](https://js-dos.com) (a DOSBox build compiled to WebAssembly).
 
 ## What's here
