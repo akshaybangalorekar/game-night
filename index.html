@@ -328,12 +328,16 @@
   function bindAct(el, key) {
     function down(e) { e.preventDefault(); e.stopPropagation(); el.classList.add('on'); press(key); }
     function up(e)   { if (e) e.stopPropagation(); el.classList.remove('on'); release(key); }
+    /* Touch devices also emit synthetic mouse events at the touch point. A swipe
+       that ends over FIRE would otherwise fire the gun and waste ammo. */
+    function mouseDown(e) { if (Date.now() - touchSeen < 1500) return; down(e); }
+    function mouseUp(e)   { if (Date.now() - touchSeen < 1500) return; up(e); }
     el.addEventListener('touchstart', down, { passive:false });
     el.addEventListener('touchend', up);
     el.addEventListener('touchcancel', up);
-    el.addEventListener('mousedown', down);
-    el.addEventListener('mouseup', up);
-    el.addEventListener('mouseleave', up);
+    el.addEventListener('mousedown', mouseDown);
+    el.addEventListener('mouseup', mouseUp);
+    el.addEventListener('mouseleave', mouseUp);
     el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   }
   /* ---------- Wolf3D menu helper ----------
