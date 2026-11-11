@@ -163,6 +163,23 @@
   function releaseAll() { Object.keys(held).forEach(release); }
   function tapKey(k) { press(k); setTimeout(function () { release(k); }, MIN_HOLD); }
 
+  /* Wolf3D's menus are driven by the DOS mouse (that gun is the cursor) and ignore
+     arrow keys, so a tap is delivered as a real mouse click at the touched point.
+     Synthetic mouse events are accepted by js-dos v8 (verified). */
+  function clickAt(x, y) {
+    var el = pad(); if (!el) return;
+    function mk(type, buttons) {
+      var o = { bubbles:true, cancelable:true, view:window, clientX:x, clientY:y,
+                screenX:x, screenY:y, button:0, buttons:buttons };
+      try { return new MouseEvent(type, o); }
+      catch (e) { var ev = document.createEvent('MouseEvents');
+        ev.initMouseEvent(type, true, true, window, 1, x, y, x, y, false, false, false, false, 0, null); return ev; }
+    }
+    el.dispatchEvent(mk('mousemove', 0));
+    el.dispatchEvent(mk('mousedown', 1));
+    setTimeout(function () { el.dispatchEvent(mk('mouseup', 0)); }, 60);
+  }
+
   /* ---------- gestures ---------- */
   var origin = null, moved = false, curKey = null, lpTimer = null, lpFired = false;
   function onAct(t) { return t && t.closest && t.closest('.act'); }
@@ -196,11 +213,15 @@
     if (ax > ay) setDir(dx < 0 ? 'ArrowLeft' : 'ArrowRight');
     else         setDir(dy < 0 ? 'ArrowUp'   : 'ArrowDown');
   }
-  function end() {
+  function end(e) {
     clearTimeout(lpTimer);
     var wasTap = origin && !moved && !lpFired;
+    var pt = origin;
     setDir(null); releaseAll(); origin = null;
-    if (wasTap) tapKey('Enter');
+    if (wasTap && pt) {
+      var t = (e && e.changedTouches && e.changedTouches[0]) || pt;
+      clickAt(t.clientX, t.clientY);
+    }
   }
   document.addEventListener('touchstart', start, { capture:true, passive:true });
   document.addEventListener('touchmove',  move,  { capture:true, passive:false });
