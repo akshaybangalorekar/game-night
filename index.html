@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <title>DOS Games</title>
-<link rel="stylesheet" href="vendor/js-dos8/js-dos.css">
+<link rel="stylesheet" href="vendor/js-dos8/js-dos.css?v=2">
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin:0; height:100%; background:#000; color:#eaeaea; overflow:hidden;
@@ -149,6 +149,7 @@
     <h3>WOLFENSTEIN MENU — tap a line</h3>
     <div id="mh-list"></div>
     <div id="mh-note" style="font-size:12px;color:#c9a227;min-height:15px"></div>
+    <div id="mh-eng" style="font-size:12px;color:#8a8a8a"></div>
     <button class="close" id="mh-close">Close</button>
   </div>
 </div>
@@ -184,7 +185,7 @@
   <div id="gnote"></div>
 </div>
 
-<script src="vendor/js-dos8/js-dos.js"></script>
+<script src="vendor/js-dos8/js-dos.js?v=2"></script>
 <script>
 (function () {
   var stage  = document.getElementById('stage');
@@ -383,6 +384,9 @@
     });
     document.getElementById('mhbtn').addEventListener('click', function (e) {
       e.stopPropagation();
+      var eng = document.getElementById('mh-eng');
+      eng.textContent = ci() ? 'engine bridge: connected ✓' : 'engine bridge: NOT connected ✗ (game not started, or old cached script)';
+      eng.style.color = ci() ? '#7ec27e' : '#e8a0a0';
       document.getElementById('mh').classList.add('show');
     });
     document.getElementById('mh-close').addEventListener('click', function (e) {
