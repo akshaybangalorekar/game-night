@@ -153,6 +153,7 @@
     <button id="mh-up">▲</button>
     <button id="mh-down">▼</button>
     <button id="mh-enter" style="background:#c9a227;color:#111;border:0">Select</button>
+    <button id="mh-back" style="background:#2a1a1a;border-color:#5a2a2a;color:#e8a0a0">◀ Back</button>
     <span id="mh-note" style="font-size:11px;color:#c9a227"></span>
     <span id="mh-eng" style="display:none"></span>
     <button class="close" id="mh-close">✕</button>
@@ -412,12 +413,13 @@
     function one(name) {
       if (busy) return;
       busy = true;
-      note(name === 'Enter' ? 'Select' : (name === 'ArrowUp' ? 'Up' : 'Down'));
+      note(name === 'Enter' ? 'Select' : name === 'Escape' ? 'Back' : (name === 'ArrowUp' ? 'Up' : 'Down'));
       stepKey(name, function () { setTimeout(function () { busy = false; }, 260); });
     }
     document.getElementById('mh-up').addEventListener('click', function (e) { e.stopPropagation(); one('ArrowUp'); });
     document.getElementById('mh-down').addEventListener('click', function (e) { e.stopPropagation(); one('ArrowDown'); });
     document.getElementById('mh-enter').addEventListener('click', function (e) { e.stopPropagation(); one('Enter'); });
+    document.getElementById('mh-back').addEventListener('click', function (e) { e.stopPropagation(); one('Escape'); });
 
     document.getElementById('mhbtn').addEventListener('click', function (e) {
       e.stopPropagation();
