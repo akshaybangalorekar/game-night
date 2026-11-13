@@ -644,7 +644,11 @@
     }
     games.classList.add('hide');
     goFull();
-    hud.hidden = (mode !== 'mobile');
+    /* on a laptop only the two thumb buttons are pointless - the menu and saves
+       buttons must stay reachable */
+    Array.prototype.forEach.call(document.querySelectorAll('.act'), function (el) {
+      el.style.display = (mode === 'mobile') ? '' : 'none';
+    });
     startGame(id);
   });
 
